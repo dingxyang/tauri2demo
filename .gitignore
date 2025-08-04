@@ -1,37 +1,19 @@
-# Gradle files
-.gradle/
-build/
+node_modules/
 
-# Local configuration file (sdk path, etc)
-local.properties
+# misc
+.DS_Store
+*.pem
+/certs
 
-# Log/OS Files
-*.log
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
+# Rust build
+target
 
-# IntelliJ
-*.iml
-.idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
 
-# Keystore files
-*.jks
-*.keystore
-
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# Android Profiling
-*.hprof
-
-node_modules
 dist/
+pnpm-lock.yaml
+backend/src-tauri/gen

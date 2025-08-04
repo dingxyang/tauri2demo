@@ -42,12 +42,19 @@ pnpm install
 pnpm tauri dev
 ```
 
-### 移动端
-```bash
-# Android
-pnpm tauri android dev
 
-# iOS
+### Android:
+```
+pnpm tauri android init
+pnpm tauri android dev
+# or if you want to dev on a real device
+pnpm tauri android dev --host
+```
+
+### IOS
+```bash
+pnpm tauri ios init
+
 pnpm tauri ios dev
 ```
 
