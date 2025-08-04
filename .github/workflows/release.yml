@@ -63,7 +63,7 @@ jobs:
           pnpm tauri android init
           
           # 生成图标
-          pnpm tauri icon src-tauri/icons/icon.png
+          pnpm tauri icon backend/src-tauri/icons/icon.png
           
           # 恢复 git 状态
           git checkout .
