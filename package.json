@@ -1,0 +1,15 @@
+{
+  "name": "tauri2demo",
+  "version": "0.1.0",
+  "description": "Tauri 2 Demo Application",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm tauri dev",
+    "start": "pnpm --filter tauri2demo dev",
+    "build": "pnpm --filter tauri2demo build",
+    "preview": "pnpm --filter tauri2demo preview"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+} 
