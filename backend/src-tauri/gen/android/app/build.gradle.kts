@@ -52,7 +52,7 @@ android {
             }
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("signing")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     kotlinOptions {
