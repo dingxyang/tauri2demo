@@ -1,6 +1,6 @@
 {
   "name": "tauri2demo",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Tauri 2 Demo Application",
   "private": true,
   "scripts": {
