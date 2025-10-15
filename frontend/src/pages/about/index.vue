@@ -1,6 +1,3 @@
-<script setup lang="ts">
-// 说明页组件
-</script>
 
 <template>
   <div class="about-page">
@@ -33,6 +30,11 @@
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+// 说明页组件
+</script>
+
 
 <style scoped>
 .header {

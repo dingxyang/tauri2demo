@@ -1,38 +1,35 @@
 <template>
-  <nav class="bottom-nav" v-if="currentPage !== 'detail'">
-    <div 
+  <nav class="bottom-nav" v-if="$route.name !== 'Detail'">
+    <router-link 
+      to="/"
       class="nav-item" 
-      :class="{ active: currentPage === 'home' }"
-      @click="switchTab('home')"
+      :class="{ active: $route.name === 'Home' }"
     >
       <div class="nav-icon">🏠</div>
       <span class="nav-text">首页</span>
-    </div>
-    <div 
+    </router-link>
+    
+    <router-link 
+      to="/dictionary"
       class="nav-item" 
-      :class="{ active: currentPage === 'about' }"
-      @click="switchTab('about')"
+      :class="{ active: $route.name === 'Dictionary' }"
+    >
+      <div class="nav-icon">📖</div>
+      <span class="nav-text">字典</span>
+    </router-link>
+    
+    <router-link 
+      to="/about"
+      class="nav-item" 
+      :class="{ active: $route.name === 'About' }"
     >
       <div class="nav-icon">ℹ️</div>
       <span class="nav-text">说明</span>
-    </div>
+    </router-link>
   </nav>
 </template>
 <script setup lang="ts">
-// 定义props
-const props = defineProps<{
-  currentPage: 'home' | 'detail' | 'about';
-}>();
-
-// 定义事件
-const emit = defineEmits<{
-  switchTab: [tab: 'home' | 'about']
-}>();
-
-// 切换底部导航
-function switchTab(tab: 'home' | 'about') {
-  emit('switchTab', tab);
-}
+// 使用路由导航，不再需要props和emit
 </script>
 
 
