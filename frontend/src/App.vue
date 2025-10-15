@@ -1,60 +1,61 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { HomePage, DetailPage, AboutPage, BottomNav } from "./components";
-import type { ListItem, PageType } from "./types";
-
-// 当前页面状态
-const currentPage = ref<PageType>('home');
-
-// 当前选中的项目
-const selectedItem = ref<ListItem | null>(null);
-
-// 切换到详情页
-function goToDetail(item: ListItem) {
-  selectedItem.value = item;
-  currentPage.value = 'detail';
-}
-
-// 返回主页
-function goBack() {
-  currentPage.value = 'home';
-  selectedItem.value = null;
-}
-
-// 切换底部导航
-function switchTab(tab: 'home' | 'about') {
-  currentPage.value = tab;
-  selectedItem.value = null;
-}
+// 使用Vue Router，不再需要手动管理页面状态
 </script>
 
 <template>
   <div class="app">
-    <!-- 主页 -->
-    <HomePage 
-      v-if="currentPage === 'home'"
-      @go-to-detail="goToDetail"
-    />
-
-    <!-- 详情页 -->
-    <DetailPage 
-      v-if="currentPage === 'detail'"
-      :selected-item="selectedItem"
-      @go-back="goBack"
-    />
-
-    <!-- 说明页 -->
-    <AboutPage 
-      v-if="currentPage === 'about'"
-    />
-
-    <!-- 底部工具栏 -->
-    <BottomNav 
-      :current-page="currentPage"
-      @switch-tab="switchTab"
-    />
+    <router-view />
   </div>
 </template>
+
+<style>
+/* 全局样式 - 禁止移动端拖动和缩放 */
+* {
+  /* 禁止文本选择 */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* 禁止拖拽 */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+}
+
+/* 允许输入框和文本区域的文本选择 */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+html, body {
+  /* 禁止页面滚动弹性效果 */
+  overscroll-behavior: none;
+  
+  /* 禁止触摸操作 */
+  touch-action: pan-y;
+  
+  /* 防止页面被拖拽 */
+  -webkit-overflow-scrolling: touch;
+  
+  /* 固定页面宽度，防止横向滚动 */
+  overflow-x: hidden;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  /* 防止应用容器被拖拽 */
+  touch-action: pan-y;
+  overflow-x: hidden;
+  width: 100%;
+}
+</style>
 
 <style scoped>
 .app {
@@ -62,7 +63,9 @@ function switchTab(tab: 'home' | 'about') {
   display: flex;
   flex-direction: column;
   background-color: #f5f5f5;
+  
+  /* 防止内容溢出导致横向滚动 */
+  overflow-x: hidden;
+  width: 100%;
 }
-
-
 </style>
