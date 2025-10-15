@@ -1,19 +1,29 @@
 <script setup lang="ts">
-import type { ListItem } from "../types";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-// 定义props
-const props = defineProps<{
-  selectedItem: ListItem | null;
-}>();
+const route = useRoute();
+const router = useRouter();
 
-// 定义事件
-const emit = defineEmits<{
-  goBack: []
-}>();
+// 从路由参数获取数据
+const selectedItem = computed(() => {
+  const id = route.params.id;
+  const title = route.query.title as string;
+  const description = route.query.description as string;
+  
+  if (id && title && description) {
+    return {
+      id: parseInt(id as string),
+      title,
+      description
+    };
+  }
+  return null;
+});
 
 // 返回主页
 function goBack() {
-  emit('goBack');
+  router.push('/');
 }
 </script>
 

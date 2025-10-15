@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { ListItem } from "../types";
+import { useRouter } from "vue-router";
+import type { ListItem } from "../../types";
+
+const router = useRouter();
 
 // 列表数据
 const listItems = ref<ListItem[]>([
@@ -11,14 +14,16 @@ const listItems = ref<ListItem[]>([
   { id: 5, title: '项目五', description: '这是第五个项目的描述' },
 ]);
 
-// 定义事件
-const emit = defineEmits<{
-  goToDetail: [item: ListItem]
-}>();
-
 // 切换到详情页
 function goToDetail(item: ListItem) {
-  emit('goToDetail', item);
+  router.push({
+    name: 'Detail',
+    params: { id: item.id.toString() },
+    query: { 
+      title: item.title,
+      description: item.description
+    }
+  });
 }
 </script>
 

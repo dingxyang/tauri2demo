@@ -5,5 +5,3 @@ export interface ListItem {
   description: string;
 }
 
-// 页面类型定义
-export type PageType = 'home' | 'detail' | 'about'; 
