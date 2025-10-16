@@ -1,0 +1,9 @@
+{
+    "name": "English",
+    "settings": {
+        "title": "Settings",
+        "apiBaseUrl": "API Base URL",
+        "apiKey": "API Key",
+        "save": "Save"
+    }
+}

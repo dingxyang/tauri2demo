@@ -29,6 +29,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Detail',
     component: () => import('@/pages/home/DetailPage.vue'),
     props: true
+  },
+  // 系统设置页面
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/pages/settings/index.vue')
   }
 ]
 

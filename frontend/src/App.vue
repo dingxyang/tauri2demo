@@ -55,6 +55,14 @@ html, body {
   overflow-x: hidden;
   width: 100%;
 }
+
+/* 全局通用样式 */
+.flex-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
 </style>
 
 <style scoped>
@@ -68,4 +76,5 @@ html, body {
   overflow-x: hidden;
   width: 100%;
 }
+
 </style>
