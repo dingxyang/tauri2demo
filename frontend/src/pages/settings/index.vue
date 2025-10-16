@@ -7,6 +7,7 @@
     </el-header>
     <el-main class="settings-main">
       <el-form :model="settings" label-width="120px" class="settings-form">
+        <el-alert class="mb-16" title="url需携带版本号vxx，并忽略/chat/completions,eg: https://api.openai.com/v1" type="info" />
         <el-form-item :label="$t('settings.apiBaseUrl')">
           <el-input v-model="settings.openai.apiBaseUrl" :placeholder="OPENAI_BASE_URL"/>
         </el-form-item>

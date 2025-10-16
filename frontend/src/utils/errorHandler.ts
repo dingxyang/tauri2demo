@@ -42,6 +42,11 @@ const ERROR_MESSAGES = {
     message: "服务器响应为空",
     suggestion: "请重试或联系技术支持"
   },
+  REQUEST_ABORTED: {
+    title: "请求已取消",
+    message: "用户主动取消了请求",
+    suggestion: "如需继续，请重新发起请求"
+  },
   UNKNOWN_ERROR: {
     title: "未知错误",
     message: "发生了未知错误",

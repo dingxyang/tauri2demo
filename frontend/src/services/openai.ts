@@ -2,7 +2,7 @@
  * OpenAI API 服务模块
  */
 
-import { OPENAI_MODEL, OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT } from "@/constant";
+import { OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT, OPENAI_MODEL_DEEPSEEK, OPENAI_MODEL_GPT } from "@/constant";
 
 // 请求类型枚举
 export enum RequestType {
@@ -14,19 +14,22 @@ export enum RequestType {
 // 基础请求参数接口
 export interface BaseRequestParams {
   text: string;
-  apiBaseUrl: string;
-  apiKey: string;
+  model?: string;
+  apiBaseUrl?: string;
+  apiKey?: string;
   requestType?: RequestType;
+  stream?: boolean;
+  abortController?: AbortController;
 }
 
 // 流式请求参数接口
 export interface StreamRequestParams extends BaseRequestParams {
   onData: (chunk: string) => void;
+  abortController?: AbortController;
 }
 
 // API 配置
 export const OPENAI_CONFIG = {
-  MODEL: OPENAI_MODEL,
   MAX_TOKENS: OPENAI_MAX_TOKENS,
   TEMPERATURE: OPENAI_TEMPERATURE,
 };
@@ -59,7 +62,8 @@ const getSystemPrompt = (requestType: RequestType, text: string): string => {
 };
 
 // 创建请求体
-const createRequestBody = (text: string, requestType: RequestType = RequestType.CHAT, stream: boolean = false) => {
+const createRequestBody = (params: BaseRequestParams) => {
+  const { text, model, stream, requestType = RequestType.CHAT } = params;
   const systemPrompt = getSystemPrompt(requestType, text);
   const messages: Array<{role: string, content: string}> = [];
   
@@ -83,7 +87,7 @@ const createRequestBody = (text: string, requestType: RequestType = RequestType.
   });
 
   return {
-    model: OPENAI_CONFIG.MODEL,
+    model,
     messages,
     max_tokens: OPENAI_CONFIG.MAX_TOKENS,
     temperature: OPENAI_CONFIG.TEMPERATURE,
@@ -125,20 +129,33 @@ const handleApiError = async (response: Response): Promise<never> => {
 
 // 流式调用 OpenAI API
 export const callOpenAIStream = async (params: StreamRequestParams): Promise<void> => {
-  const { text, onData, apiBaseUrl, apiKey, requestType = RequestType.CHAT } = params;
+  const { text, onData, apiBaseUrl, apiKey, requestType = RequestType.CHAT, abortController } = params;
   
   if (!apiKey) {
     throw new ApiError("请先配置 API 密钥", 0, "API_NOT_CONFIGURED");
   }
 
+  let model;
+  if (!apiBaseUrl.includes('api.openai.com')) {
+    model = OPENAI_MODEL_DEEPSEEK;
+  } else {
+    model = OPENAI_MODEL_GPT;
+  }
+
   try {
-    const response = await fetch(apiBaseUrl+`/v1/chat/completions`, {
+    const response = await fetch(apiBaseUrl+`/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(createRequestBody(text, requestType, true)),
+      body: JSON.stringify(createRequestBody({
+          text, 
+          model,
+          requestType, 
+          stream: true,
+      })),
+      signal: abortController?.signal,
     });
 
     if (!response.ok) {
@@ -188,6 +205,10 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
       throw error;
     }
     
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError("请求已被取消", 0, "REQUEST_ABORTED");
+    }
+    
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new ApiError("网络连接失败", 0, "NETWORK_ERROR");
     }
@@ -198,10 +219,17 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
 
 // 非流式调用 OpenAI API
 export const callOpenAI = async (params: BaseRequestParams): Promise<string> => {
-  const { text, apiBaseUrl, apiKey, requestType = RequestType.CHAT } = params;
+  const { text, apiBaseUrl, apiKey, requestType = RequestType.CHAT, abortController } = params;
   
   if (!apiKey) {
     throw new ApiError("请先配置 API 密钥", 0, "API_NOT_CONFIGURED");
+  }
+
+  let model;
+  if (apiBaseUrl.includes('ark.cn-beijing.volces.com')) {
+    model = OPENAI_MODEL_DEEPSEEK;
+  } else {
+    model = OPENAI_MODEL_GPT;
   }
 
   try {
@@ -211,7 +239,13 @@ export const callOpenAI = async (params: BaseRequestParams): Promise<string> => 
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(createRequestBody(text, requestType, false)),
+      body: JSON.stringify(createRequestBody({
+        text, 
+        model,
+        requestType, 
+        stream: false,
+      })),
+      signal: abortController?.signal,
     });
 
     if (!response.ok) {
@@ -224,6 +258,10 @@ export const callOpenAI = async (params: BaseRequestParams): Promise<string> => 
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
+    }
+    
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError("请求已被取消", 0, "REQUEST_ABORTED");
     }
     
     if (error instanceof TypeError && error.message.includes('fetch')) {
