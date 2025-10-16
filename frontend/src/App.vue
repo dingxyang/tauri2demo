@@ -58,6 +58,10 @@ html, body {
   justify-content: space-between;
   align-items: center;
 }
+
+.mb-16 {
+  margin-bottom: 16px;
+}
 </style>
 
 <style scoped>
