@@ -2,7 +2,7 @@ export const OPENAI_BASE_URL = "https://api.openai.com";
 export const OPENAI_MODEL = "gpt-3.5-turbo";
 export const OPENAI_MAX_TOKENS = 1000;
 export const OPENAI_TEMPERATURE = 0.7;
-export const OPENAI_SYSTEM_PROMPT = "处理用户输入的内容，并用markdown格式返回结果。";
+export const OPENAI_SYSTEM_PROMPT = "";
 
 export const USER_DEFAULT_INPUT = `
 帮我把西班牙语单词 abrasión 翻译成中文，并提供详细的翻译结果，格式要求如下：

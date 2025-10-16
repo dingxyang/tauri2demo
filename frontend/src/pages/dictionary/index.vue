@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { ElInput, ElMessage, ElButton } from "element-plus";
 import { Setting } from "@element-plus/icons-vue";
 import MarkdownIt from "markdown-it";
@@ -49,6 +49,7 @@ import { handleError, generateErrorMarkdown } from "../../utils/errorHandler";
 import { USER_DEFAULT_INPUT } from "@/constant";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settings";
+import { useShikiHighlighter } from '@/hooks/useShikiHighlighter';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();   
@@ -60,12 +61,47 @@ const useStreaming = ref(true); // 默认使用流式输出
 
 const settings = computed(() => settingsStore.settingsState);
 
+
+// 高亮任务管理
+const highlightTasks = new Map();
+const { codeToHtml } = useShikiHighlighter();
+
 const mdi = new MarkdownIt({
   html: true,
   linkify: true,
   breaks: true,
   typographer: true,
+  highlight: (code, language) => {
+    const id = `shiki-${Date.now()}-${Math.random()}`;
+    highlightTasks.set(id, codeToHtml(code, language));
+    return `<div data-shiki-id="${id}"></div>`;
+  },
 });
+
+// 处理异步高亮结果
+const processHighlightedContent = async (html: string) => {
+  let processedHtml = html;
+  
+  // 查找所有需要替换的占位符
+  const placeholders = Array.from(html.matchAll(/<div data-shiki-id="([^"]+)"><\/div>/g));
+  
+  // 等待所有高亮任务完成并替换
+  for (const [fullMatch, id] of placeholders) {
+    if (highlightTasks.has(id)) {
+      try {
+        const highlightedCode = await highlightTasks.get(id);
+        processedHtml = processedHtml.replace(fullMatch, highlightedCode);
+        highlightTasks.delete(id); // 清理已完成的任务
+      } catch (error) {
+        console.error('代码高亮失败:', error);
+        processedHtml = processedHtml.replace(fullMatch, `<code>代码高亮失败</code>`);
+      }
+    }
+  }
+  
+  return processedHtml;
+};
+
 
 // 跳转至设置页面
 const goToSettings = () => {
@@ -94,10 +130,11 @@ const translate = async () => {
   try {
     if (useStreaming.value) {
       // 使用流式输出
-      await callOpenAIStream(userInput.value, (chunk: string) => {
+      await callOpenAIStream(userInput.value, async (chunk: string) => {
         // 每收到一个数据块就更新显示
         streamingText.value += chunk;
-        markdownResult.value = mdi.render(streamingText.value);
+        const rawHtml = mdi.render(streamingText.value);
+        markdownResult.value = await processHighlightedContent(rawHtml);
       },
       settings.value.openai.apiBaseUrl,
       settings.value.openai.apiKey
@@ -105,14 +142,16 @@ const translate = async () => {
     } else {
       // 使用普通输出
       const result = await callOpenAI(userInput.value, settings.value.openai.apiBaseUrl, settings.value.openai.apiKey );
-      markdownResult.value = mdi.render(result);
+      const rawHtml = mdi.render(result);
+      markdownResult.value = await processHighlightedContent(rawHtml);
     }
 
     ElMessage.success("翻译完成");
   } catch (error) {
     // 使用统一的错误处理
     const errorInfo = handleError(error);
-    markdownResult.value = mdi.render(generateErrorMarkdown(errorInfo));
+    const rawHtml = mdi.render(generateErrorMarkdown(errorInfo));
+    markdownResult.value = await processHighlightedContent(rawHtml);
   } finally {
     isLoading.value = false;
   }
@@ -120,6 +159,10 @@ const translate = async () => {
 </script>
 
 <style scoped>
+.button-container {
+  margin-top: 10px;
+}
+
 .markdown-result {
   padding: 10px;
   background-color: #ffffff;
@@ -138,25 +181,6 @@ const translate = async () => {
   box-sizing: border-box;
 }
 
-/* 处理代码块 */
-.markdown-result pre {
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-/* 处理表格 */
-.markdown-result table {
-  width: 100%;
-  table-layout: fixed;
-  word-wrap: break-word;
-}
-
-/* 处理图片 */
-.markdown-result img {
-  max-width: 100%;
-  height: auto;
-}
 
 /* 加载状态样式 */
 .loading-state {
