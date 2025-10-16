@@ -17,11 +17,10 @@
         <div class="button-container">
           <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译</el-button>
           <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西语翻译</el-button>
-          <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button>
+          <!-- <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button> -->
           <el-button @click="clearInput" :disabled="isLoading">清空</el-button>
           <el-button v-if="isLoading" @click="abortRequest" type="danger">终止</el-button>
         </div>
-      <h2>会话结果</h2>
       <!-- 加载状态（仅在没有流式内容时显示） -->
       <div v-if="isLoading && !streamingText" class="loading-state">
         <div class="loading-spinner"></div>
@@ -186,6 +185,7 @@ const aiChat = async (prompt: RequestType) => {
 <style scoped>
 .button-container {
   margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .markdown-result {

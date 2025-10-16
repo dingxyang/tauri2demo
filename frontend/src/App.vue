@@ -11,7 +11,7 @@
 <style>
 /* 全局样式 - 禁止移动端拖动和缩放 */
 * {
-  
+
   /* 禁止拖拽 */
   -webkit-user-drag: none;
   -khtml-user-drag: none;
@@ -30,13 +30,13 @@ input, textarea, [contenteditable] {
 html, body {
   /* 禁止页面滚动弹性效果 */
   overscroll-behavior: none;
-  
+
   /* 禁止触摸操作 */
   touch-action: pan-y;
-  
+
   /* 防止页面被拖拽 */
   -webkit-overflow-scrolling: touch;
-  
+
   /* 固定页面宽度，防止横向滚动 */
   overflow-x: hidden;
   width: 100%;
@@ -70,7 +70,7 @@ html, body {
   display: flex;
   flex-direction: column;
   background-color: #f5f5f5;
-  
+
   /* 防止内容溢出导致横向滚动 */
   overflow-x: hidden;
   width: 100%;
