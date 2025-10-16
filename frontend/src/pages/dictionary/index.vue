@@ -2,7 +2,7 @@
 <template>
   <el-container class="dictionary-container">
     <el-header class="dictionary-header flex-header">
-      <h2>翻译助手</h2>
+      <h2>AI助手</h2>
       <el-icon @click="goToSettings"><Setting /></el-icon>
     </el-header>
     <!-- 输入框 -->
@@ -15,14 +15,16 @@
           resize="none"
         />
         <div class="button-container">
-          <el-button @click="translate">翻译</el-button>
+          <el-button @click="aiChat(RequestType.CN_TO_ES)">中文翻译成西班牙语</el-button>
+          <el-button @click="aiChat(RequestType.ES_TO_CN)">西班牙语翻译成中文</el-button>
+          <el-button @click="aiChat(RequestType.CHAT)">AI对话</el-button>
           <el-button @click="clearInput">清空</el-button>
         </div>
-      <h2>翻译结果</h2>
+      <h2>会话结果</h2>
       <!-- 加载状态（仅在没有流式内容时显示） -->
       <div v-if="isLoading && !streamingText" class="loading-state">
         <div class="loading-spinner"></div>
-        正在翻译中...
+        正在会话中...
       </div>
       <!-- 使用Markdown渲染翻译结果 -->
       <div
@@ -44,16 +46,15 @@ import { ref, computed } from "vue";
 import { ElInput, ElMessage, ElButton } from "element-plus";
 import { Setting } from "@element-plus/icons-vue";
 import MarkdownIt from "markdown-it";
-import { callOpenAI, callOpenAIStream } from "../../services/openai";
+import { callOpenAI, callOpenAIStream, RequestType } from "../../services/openai";
 import { handleError, generateErrorMarkdown } from "../../utils/errorHandler";
-import { USER_DEFAULT_INPUT } from "@/constant";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settings";
 import { useShikiHighlighter } from '@/hooks/useShikiHighlighter';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();   
-const userInput = ref(USER_DEFAULT_INPUT);
+const userInput = ref('');
 const markdownResult = ref("");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
@@ -116,7 +117,7 @@ const clearInput = () => {
 };
 
 // 翻译函数（支持流式和普通输出）
-const translate = async () => {
+const aiChat = async (prompt: RequestType) => {
   if (!userInput.value.trim()) {
     markdownResult.value = "";
     streamingText.value = "";
@@ -130,18 +131,26 @@ const translate = async () => {
   try {
     if (useStreaming.value) {
       // 使用流式输出
-      await callOpenAIStream(userInput.value, async (chunk: string) => {
+      await callOpenAIStream({
+        text: userInput.value,
+        onData: async (chunk: string) => {
         // 每收到一个数据块就更新显示
         streamingText.value += chunk;
         const rawHtml = mdi.render(streamingText.value);
         markdownResult.value = await processHighlightedContent(rawHtml);
       },
-      settings.value.openai.apiBaseUrl,
-      settings.value.openai.apiKey
-    );
+        apiBaseUrl: settings.value.openai.apiBaseUrl,
+        apiKey: settings.value.openai.apiKey,
+        requestType: prompt 
+      });
     } else {
       // 使用普通输出
-      const result = await callOpenAI(userInput.value, settings.value.openai.apiBaseUrl, settings.value.openai.apiKey );
+      const result = await callOpenAI({
+        text: userInput.value,
+        apiBaseUrl: settings.value.openai.apiBaseUrl,
+        apiKey: settings.value.openai.apiKey,
+        requestType: prompt 
+      });
       const rawHtml = mdi.render(result);
       markdownResult.value = await processHighlightedContent(rawHtml);
     }
