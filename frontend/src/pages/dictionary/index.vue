@@ -2,7 +2,7 @@
 <template>
   <el-container class="dictionary-container">
     <el-header class="dictionary-header flex-header">
-      <h2>AI助手</h2>
+      <h2>翻译助手</h2>
       <el-icon @click="goToSettings"><Setting /></el-icon>
     </el-header>
     <!-- 输入框 -->
@@ -15,11 +15,11 @@
           resize="none"
         />
         <div class="button-container">
-          <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译成西班牙语</el-button>
-          <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西班牙语翻译成中文</el-button>
+          <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译</el-button>
+          <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西语翻译</el-button>
           <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button>
           <el-button @click="clearInput" :disabled="isLoading">清空</el-button>
-          <el-button v-if="isLoading" @click="abortRequest" type="danger">终止请求</el-button>
+          <el-button v-if="isLoading" @click="abortRequest" type="danger">终止</el-button>
         </div>
       <h2>会话结果</h2>
       <!-- 加载状态（仅在没有流式内容时显示） -->
@@ -54,7 +54,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useShikiHighlighter } from '@/hooks/useShikiHighlighter';
 
 const router = useRouter();
-const settingsStore = useSettingsStore();   
+const settingsStore = useSettingsStore();
 const userInput = ref('挖土机');
 const markdownResult = ref("");
 const isLoading = ref(false);
@@ -84,10 +84,10 @@ const mdi = new MarkdownIt({
 // 处理异步高亮结果
 const processHighlightedContent = async (html: string) => {
   let processedHtml = html;
-  
+
   // 查找所有需要替换的占位符
   const placeholders = Array.from(html.matchAll(/<div data-shiki-id="([^"]+)"><\/div>/g));
-  
+
   // 等待所有高亮任务完成并替换
   for (const [fullMatch, id] of placeholders) {
     if (highlightTasks.has(id)) {
@@ -101,7 +101,7 @@ const processHighlightedContent = async (html: string) => {
       }
     }
   }
-  
+
   return processedHtml;
 };
 
