@@ -1,5 +1,6 @@
-export const OPENAI_BASE_URL = "https://api.openai.com";
-export const OPENAI_MODEL = "gpt-3.5-turbo";
+export const OPENAI_BASE_URL = "https://api.openai.com/v1";
+export const OPENAI_MODEL_GPT = "gpt-3.5-turbo";
+export const OPENAI_MODEL_DEEPSEEK = "deepseek-v3-250324";
 export const OPENAI_MAX_TOKENS = 1000;
 export const OPENAI_TEMPERATURE = 0.7;
 export const OPENAI_SYSTEM_PROMPT = "";

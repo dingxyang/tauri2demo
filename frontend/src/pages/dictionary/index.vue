@@ -54,7 +54,7 @@ import { useShikiHighlighter } from '@/hooks/useShikiHighlighter';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();   
-const userInput = ref('');
+const userInput = ref('挖土机');
 const markdownResult = ref("");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
@@ -111,7 +111,7 @@ const goToSettings = () => {
 
 // 清空内容
 const clearInput = () => {
-  userInput.value = "";
+  userInput.value = "挖土机";
   markdownResult.value = "";
   streamingText.value = "";
 };
