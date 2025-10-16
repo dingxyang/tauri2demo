@@ -1,57 +1,182 @@
 <!-- 字典页 -->
 <template>
-  <div class="dictionary-page">
-    <h2>翻译助手</h2>
+  <el-container class="dictionary-container">
+    <el-header class="dictionary-header flex-header">
+      <h2>AI助手</h2>
+      <el-icon @click="goToSettings"><Setting /></el-icon>
+    </el-header>
     <!-- 输入框 -->
-    <el-input
-      :rows="4"
-      type="textarea"
-      v-model="input"
-      placeholder="请输入内容"
-      @input="translate"
-      resize="none"
-    />
-    <h2>翻译结果</h2>
-    <!-- 使用Markdown渲染翻译结果 -->
-    <div class="markdown-result" v-html="markdownResult"></div>
-  </div>
+    <el-main class="dictionary-main">
+        <el-input
+          :rows="4"
+          type="textarea"
+          v-model="userInput"
+          placeholder="请输入内容"
+          resize="none"
+        />
+        <div class="button-container">
+          <el-button @click="aiChat(RequestType.CN_TO_ES)">中文翻译成西班牙语</el-button>
+          <el-button @click="aiChat(RequestType.ES_TO_CN)">西班牙语翻译成中文</el-button>
+          <el-button @click="aiChat(RequestType.CHAT)">AI对话</el-button>
+          <el-button @click="clearInput">清空</el-button>
+        </div>
+      <h2>会话结果</h2>
+      <!-- 加载状态（仅在没有流式内容时显示） -->
+      <div v-if="isLoading && !streamingText" class="loading-state">
+        <div class="loading-spinner"></div>
+        正在会话中...
+      </div>
+      <!-- 使用Markdown渲染翻译结果 -->
+      <div
+        v-if="markdownResult || (isLoading && streamingText)"
+        class="markdown-result"
+      >
+        <div v-html="markdownResult"></div>
+        <!-- 流式输出时显示光标 -->
+        <span v-if="isLoading && streamingText" class="streaming-cursor"
+          >|</span
+        >
+      </div>
+    </el-main>
+  </el-container>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { ElInput } from "element-plus";
+import { ref, computed } from "vue";
+import { ElInput, ElMessage, ElButton } from "element-plus";
+import { Setting } from "@element-plus/icons-vue";
 import MarkdownIt from "markdown-it";
-const input = ref("");
+import { callOpenAI, callOpenAIStream, RequestType } from "../../services/openai";
+import { handleError, generateErrorMarkdown } from "../../utils/errorHandler";
+import { useRouter } from "vue-router";
+import { useSettingsStore } from "@/stores/settings";
+import { useShikiHighlighter } from '@/hooks/useShikiHighlighter';
+
+const router = useRouter();
+const settingsStore = useSettingsStore();   
+const userInput = ref('');
 const markdownResult = ref("");
+const isLoading = ref(false);
+const streamingText = ref(""); // 存储流式输出的原始文本
+const useStreaming = ref(true); // 默认使用流式输出
+
+const settings = computed(() => settingsStore.settingsState);
+
+
+// 高亮任务管理
+const highlightTasks = new Map();
+const { codeToHtml } = useShikiHighlighter();
 
 const mdi = new MarkdownIt({
   html: true,
   linkify: true,
   breaks: true,
   typographer: true,
+  highlight: (code, language) => {
+    const id = `shiki-${Date.now()}-${Math.random()}`;
+    highlightTasks.set(id, codeToHtml(code, language));
+    return `<div data-shiki-id="${id}"></div>`;
+  },
 });
 
-// 搜索
-const translate = () => {
-  console.log(input.value);
-  markdownResult.value = mdi.render(input.value);
+// 处理异步高亮结果
+const processHighlightedContent = async (html: string) => {
+  let processedHtml = html;
+  
+  // 查找所有需要替换的占位符
+  const placeholders = Array.from(html.matchAll(/<div data-shiki-id="([^"]+)"><\/div>/g));
+  
+  // 等待所有高亮任务完成并替换
+  for (const [fullMatch, id] of placeholders) {
+    if (highlightTasks.has(id)) {
+      try {
+        const highlightedCode = await highlightTasks.get(id);
+        processedHtml = processedHtml.replace(fullMatch, highlightedCode);
+        highlightTasks.delete(id); // 清理已完成的任务
+      } catch (error) {
+        console.error('代码高亮失败:', error);
+        processedHtml = processedHtml.replace(fullMatch, `<code>代码高亮失败</code>`);
+      }
+    }
+  }
+  
+  return processedHtml;
+};
+
+
+// 跳转至设置页面
+const goToSettings = () => {
+  router.push({ path: "/settings" });
+};
+
+// 清空内容
+const clearInput = () => {
+  userInput.value = "";
+  markdownResult.value = "";
+  streamingText.value = "";
+};
+
+// 翻译函数（支持流式和普通输出）
+const aiChat = async (prompt: RequestType) => {
+  if (!userInput.value.trim()) {
+    markdownResult.value = "";
+    streamingText.value = "";
+    return;
+  }
+
+  isLoading.value = true;
+  streamingText.value = ""; // 清空之前的流式文本
+  markdownResult.value = ""; // 清空之前的结果
+
+  try {
+    if (useStreaming.value) {
+      // 使用流式输出
+      await callOpenAIStream({
+        text: userInput.value,
+        onData: async (chunk: string) => {
+        // 每收到一个数据块就更新显示
+        streamingText.value += chunk;
+        const rawHtml = mdi.render(streamingText.value);
+        markdownResult.value = await processHighlightedContent(rawHtml);
+      },
+        apiBaseUrl: settings.value.openai.apiBaseUrl,
+        apiKey: settings.value.openai.apiKey,
+        requestType: prompt 
+      });
+    } else {
+      // 使用普通输出
+      const result = await callOpenAI({
+        text: userInput.value,
+        apiBaseUrl: settings.value.openai.apiBaseUrl,
+        apiKey: settings.value.openai.apiKey,
+        requestType: prompt 
+      });
+      const rawHtml = mdi.render(result);
+      markdownResult.value = await processHighlightedContent(rawHtml);
+    }
+
+    ElMessage.success("翻译完成");
+  } catch (error) {
+    // 使用统一的错误处理
+    const errorInfo = handleError(error);
+    const rawHtml = mdi.render(generateErrorMarkdown(errorInfo));
+    markdownResult.value = await processHighlightedContent(rawHtml);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 
 <style scoped>
-.dictionary-page {
-  padding: 20px;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding-bottom: 100px; /* 为底部导航栏留出空间 */
+.button-container {
+  margin-top: 10px;
 }
 
 .markdown-result {
   padding: 10px;
-  background-color: #f5f5f5;
+  background-color: #ffffff;
   border-radius: 5px;
   max-width: 100%;
-  max-height: 400px; /* 限制最大高度 */
   overflow: auto; /* 内容超出时显示滚动条 */
   overflow-wrap: break-word;
   word-wrap: break-word;
@@ -65,23 +190,54 @@ const translate = () => {
   box-sizing: border-box;
 }
 
-/* 处理代码块 */
-.markdown-result pre {
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+
+/* 加载状态样式 */
+.loading-state {
+  padding: 20px;
+  text-align: center;
+  color: #409eff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-/* 处理表格 */
-.markdown-result table {
-  width: 100%;
-  table-layout: fixed;
-  word-wrap: break-word;
+/* 加载动画 */
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #409eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-/* 处理图片 */
-.markdown-result img {
-  max-width: 100%;
-  height: auto;
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 流式输出光标动画 */
+.streaming-cursor {
+  color: #409eff;
+  font-weight: bold;
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 </style>

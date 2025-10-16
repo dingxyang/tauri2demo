@@ -1,0 +1,9 @@
+{
+    "name": "繁體中文",
+    "settings": {
+        "title": "系統設置",
+        "apiBaseUrl": "自定義 API Base URL",
+        "apiKey": "API Key",
+        "save": "保存"
+    }
+}
