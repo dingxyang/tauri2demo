@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path, { resolve } from 'path';
-import AutoImport from 'unplugin-auto-import/vite'
 
 const host = process.env.TAURI_DEV_HOST;
 const pathSrc = path.resolve(__dirname, 'src')
@@ -10,12 +9,6 @@ const pathSrc = path.resolve(__dirname, 'src')
 export default defineConfig(async () => ({
   plugins: [
     vue(),
-    AutoImport({
-      // Auto import functions from Vue, e.g. ref, reactive, toRef...
-      // 自动导入 Vue 相关函数，如：ref, reactive, toRef 等
-      imports: ['vue'],
-      dts: path.resolve(pathSrc, 'auto-imports.d.ts'),
-    }),
   ],
   resolve: {
     alias: {
