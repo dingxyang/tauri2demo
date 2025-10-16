@@ -15,10 +15,11 @@
           resize="none"
         />
         <div class="button-container">
-          <el-button @click="aiChat(RequestType.CN_TO_ES)">中文翻译成西班牙语</el-button>
-          <el-button @click="aiChat(RequestType.ES_TO_CN)">西班牙语翻译成中文</el-button>
-          <el-button @click="aiChat(RequestType.CHAT)">AI对话</el-button>
-          <el-button @click="clearInput">清空</el-button>
+          <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译成西班牙语</el-button>
+          <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西班牙语翻译成中文</el-button>
+          <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button>
+          <el-button @click="clearInput" :disabled="isLoading">清空</el-button>
+          <el-button v-if="isLoading" @click="abortRequest" type="danger">终止请求</el-button>
         </div>
       <h2>会话结果</h2>
       <!-- 加载状态（仅在没有流式内容时显示） -->
@@ -59,6 +60,7 @@ const markdownResult = ref("");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
+const currentAbortController = ref<AbortController | null>(null); // 当前请求的终止控制器
 
 const settings = computed(() => settingsStore.settingsState);
 
@@ -116,6 +118,15 @@ const clearInput = () => {
   streamingText.value = "";
 };
 
+// 终止当前请求
+const abortRequest = () => {
+  if (currentAbortController.value) {
+    currentAbortController.value.abort();
+    currentAbortController.value = null;
+    isLoading.value = false;
+  }
+};
+
 // 翻译函数（支持流式和普通输出）
 const aiChat = async (prompt: RequestType) => {
   if (!userInput.value.trim()) {
@@ -124,6 +135,8 @@ const aiChat = async (prompt: RequestType) => {
     return;
   }
 
+  // 创建新的AbortController
+  currentAbortController.value = new AbortController();
   isLoading.value = true;
   streamingText.value = ""; // 清空之前的流式文本
   markdownResult.value = ""; // 清空之前的结果
@@ -141,7 +154,8 @@ const aiChat = async (prompt: RequestType) => {
       },
         apiBaseUrl: settings.value.openai.apiBaseUrl,
         apiKey: settings.value.openai.apiKey,
-        requestType: prompt 
+        requestType: prompt,
+        abortController: currentAbortController.value
       });
     } else {
       // 使用普通输出
@@ -149,13 +163,14 @@ const aiChat = async (prompt: RequestType) => {
         text: userInput.value,
         apiBaseUrl: settings.value.openai.apiBaseUrl,
         apiKey: settings.value.openai.apiKey,
-        requestType: prompt 
+        requestType: prompt,
+        abortController: currentAbortController.value
       });
       const rawHtml = mdi.render(result);
       markdownResult.value = await processHighlightedContent(rawHtml);
     }
 
-    ElMessage.success("翻译完成");
+    ElMessage.success("会话完成");
   } catch (error) {
     // 使用统一的错误处理
     const errorInfo = handleError(error);
@@ -163,6 +178,7 @@ const aiChat = async (prompt: RequestType) => {
     markdownResult.value = await processHighlightedContent(rawHtml);
   } finally {
     isLoading.value = false;
+    currentAbortController.value = null; // 清理AbortController
   }
 };
 </script>
