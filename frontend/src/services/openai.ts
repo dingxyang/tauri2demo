@@ -14,16 +14,18 @@ export enum RequestType {
 // 基础请求参数接口
 export interface BaseRequestParams {
   text: string;
-  model: string;
+  model?: string;
   apiBaseUrl?: string;
   apiKey?: string;
   requestType?: RequestType;
   stream?: boolean;
+  abortController?: AbortController;
 }
 
 // 流式请求参数接口
 export interface StreamRequestParams extends BaseRequestParams {
   onData: (chunk: string) => void;
+  abortController?: AbortController;
 }
 
 // API 配置
@@ -127,7 +129,7 @@ const handleApiError = async (response: Response): Promise<never> => {
 
 // 流式调用 OpenAI API
 export const callOpenAIStream = async (params: StreamRequestParams): Promise<void> => {
-  const { text, onData, apiBaseUrl, apiKey, requestType = RequestType.CHAT } = params;
+  const { text, onData, apiBaseUrl, apiKey, requestType = RequestType.CHAT, abortController } = params;
   
   if (!apiKey) {
     throw new ApiError("请先配置 API 密钥", 0, "API_NOT_CONFIGURED");
@@ -153,6 +155,7 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
           requestType, 
           stream: true,
       })),
+      signal: abortController?.signal,
     });
 
     if (!response.ok) {
@@ -202,6 +205,10 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
       throw error;
     }
     
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError("请求已被取消", 0, "REQUEST_ABORTED");
+    }
+    
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new ApiError("网络连接失败", 0, "NETWORK_ERROR");
     }
@@ -212,7 +219,7 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
 
 // 非流式调用 OpenAI API
 export const callOpenAI = async (params: BaseRequestParams): Promise<string> => {
-  const { text, apiBaseUrl, apiKey, requestType = RequestType.CHAT } = params;
+  const { text, apiBaseUrl, apiKey, requestType = RequestType.CHAT, abortController } = params;
   
   if (!apiKey) {
     throw new ApiError("请先配置 API 密钥", 0, "API_NOT_CONFIGURED");
@@ -238,6 +245,7 @@ export const callOpenAI = async (params: BaseRequestParams): Promise<string> => 
         requestType, 
         stream: false,
       })),
+      signal: abortController?.signal,
     });
 
     if (!response.ok) {
@@ -250,6 +258,10 @@ export const callOpenAI = async (params: BaseRequestParams): Promise<string> => 
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
+    }
+    
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError("请求已被取消", 0, "REQUEST_ABORTED");
     }
     
     if (error instanceof TypeError && error.message.includes('fetch')) {
