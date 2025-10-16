@@ -11,11 +11,6 @@
 <style>
 /* 全局样式 - 禁止移动端拖动和缩放 */
 * {
-  /* 禁止文本选择 */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
   
   /* 禁止拖拽 */
   -webkit-user-drag: none;

@@ -2,14 +2,13 @@
  * OpenAI API 服务模块
  */
 
-import { OPENAI_MODEL, OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE, OPENAI_SYSTEM_PROMPT,  } from "@/constant";
+import { OPENAI_MODEL, OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE } from "@/constant";
 
 // API 配置
 export const OPENAI_CONFIG = {
   MODEL: OPENAI_MODEL,
   MAX_TOKENS: OPENAI_MAX_TOKENS,
   TEMPERATURE: OPENAI_TEMPERATURE,
-  SYSTEM_PROMPT: OPENAI_SYSTEM_PROMPT,
 };
 
 // API 错误类型
@@ -30,10 +29,10 @@ export class ApiError extends Error {
 const createRequestBody = (text: string, stream: boolean = false) => ({
   model: OPENAI_CONFIG.MODEL,
   messages: [
-    {
-      role: "system",
-      content: OPENAI_CONFIG.SYSTEM_PROMPT
-    },
+    // {
+    //   role: "system",
+    //   content: OPENAI_CONFIG.SYSTEM_PROMPT
+    // },
     {
       role: "user",
       content: text

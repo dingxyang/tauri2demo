@@ -1,4 +1,4 @@
-const appStore = {};
+const appStore: any = {};
 
 /**
  * 注册app状态库

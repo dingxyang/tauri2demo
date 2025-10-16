@@ -1,7 +1,6 @@
 import { createApp } from "vue";
 import ElementPlus from 'element-plus'
 import { createPinia } from 'pinia';
-import { registerStore } from '@/stores';
 import 'element-plus/dist/index.css'
 import App from "./App.vue";
 import router from './router'
@@ -17,7 +16,6 @@ async function initApp() {
   
   // 注册pinia store
   app.use(createPinia());
-  registerStore();
   
   // 在应用挂载前初始化配置
   const settingsStore = useSettingsStore();

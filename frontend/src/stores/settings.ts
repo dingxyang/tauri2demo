@@ -1,8 +1,5 @@
-import {
-  split,
-} from "lodash-es";
 import { defineStore } from "pinia";
-import { reactive, computed } from "vue";
+import { reactive } from "vue";
 import { getSettings, setSettings } from "@/utils/localStorage";
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -11,31 +8,15 @@ export const useSettingsStore = defineStore("settings", () => {
       apiBaseUrl: "",
       apiKey: "",
     },
-    general: {
-      language: "zh-cn",
-      theme: "light",
-    },
+    isDark: false,
   });
 
-  const currentLanguage = computed(() => {
-    let lang = settingsState.general.language;
-    if (lang === "auto") {
-      const systemLang = navigator.language || "zh-cn";
-      lang = split(systemLang, "-")[0];
-    }
-    return lang || "zh";
-  });
-
-  const isDark = computed(() => {
-    const theme = settingsState.general.theme;
-    return theme === "dark";
-  });
 
   const loadSettings = async () => {
     // 先从本地缓存读取
     let settings = getSettings();
-    settings = JSON.parse(settings);
     if (settings) {
+      settings = JSON.parse(settings);
       settingsState.openai.apiBaseUrl = settings.openai.apiBaseUrl;
       settingsState.openai.apiKey = settings.openai.apiKey;
     }
@@ -53,8 +34,6 @@ export const useSettingsStore = defineStore("settings", () => {
 
   return {
     settingsState,
-    isDark,
-    currentLanguage,
     loadSettings,
     saveSettings
   };
