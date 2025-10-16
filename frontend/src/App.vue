@@ -11,11 +11,6 @@
 <style>
 /* 全局样式 - 禁止移动端拖动和缩放 */
 * {
-  /* 禁止文本选择 */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
   
   /* 禁止拖拽 */
   -webkit-user-drag: none;
@@ -55,6 +50,14 @@ html, body {
   overflow-x: hidden;
   width: 100%;
 }
+
+/* 全局通用样式 */
+.flex-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
 </style>
 
 <style scoped>
@@ -68,4 +71,5 @@ html, body {
   overflow-x: hidden;
   width: 100%;
 }
+
 </style>
