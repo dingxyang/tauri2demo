@@ -136,7 +136,7 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
   }
 
   let model;
-  if (apiBaseUrl.includes('ark.cn-beijing.volces.com')) {
+  if (!apiBaseUrl.includes('api.openai.com')) {
     model = OPENAI_MODEL_DEEPSEEK;
   } else {
     model = OPENAI_MODEL_GPT;
