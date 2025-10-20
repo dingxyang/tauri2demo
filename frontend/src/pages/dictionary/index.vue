@@ -1,6 +1,6 @@
 <!-- 字典页 -->
 <template>
-  <el-container class="dictionary-container">
+  <el-container class="dictionary-container" @click="handleContainerClick">
     <el-header class="dictionary-header flex-header">
       <h2>翻译助手</h2>
       <el-icon @click="goToSettings"><Setting /></el-icon>
@@ -32,17 +32,22 @@
         class="markdown-result"
       >
         <div v-html="markdownResult"></div>
-        <!-- 流式输出时显示光标 -->
-        <span v-if="isLoading && streamingText" class="streaming-cursor"
-          >|</span
-        >
       </div>
+      
+      <!-- 文本选择弹窗 -->
+      <TextSelectionPopup
+        :visible="textSelection.isVisible.value"
+        :selected-text="textSelection.selectedText.value"
+        :selection-rect="textSelection.selectionRect.value"
+        @close="textSelection.hidePopup"
+        @translate="handlePopupTranslate"
+      />
     </el-main>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, nextTick } from "vue";
 import { ElInput, ElMessage, ElButton } from "element-plus";
 import { Setting } from "@element-plus/icons-vue";
 import MarkdownIt from "markdown-it";
@@ -50,16 +55,27 @@ import { callOpenAI, callOpenAIStream, RequestType } from "../../services/openai
 import { handleError, generateErrorMarkdown } from "../../utils/errorHandler";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settings";
-import { useShikiHighlighter } from '@/hooks/useShikiHighlighter';
+import { useShikiHighlighter } from './hooks/useShikiHighlighter';
+import { useTextSelection } from './hooks/useTextSelection';
+import TextSelectionPopup from './components/TextSelectionPopup.vue';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();
 const userInput = ref('挖土机');
-const markdownResult = ref("");
+const markdownResult = ref("La profundidad crítica del canal determina el flujo hidráulico");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
 const currentAbortController = ref<AbortController | null>(null); // 当前请求的终止控制器
+
+// 使用文本选择功能
+const textSelection = useTextSelection({
+  containerSelector: '.markdown-result',
+  minTextLength: 1,
+  maxTextLength: 100,
+  enableMobile: true,
+  autoHideDelay: 5000
+});
 
 const settings = computed(() => settingsStore.settingsState);
 
@@ -110,6 +126,11 @@ const goToSettings = () => {
   router.push({ path: "/settings" });
 };
 
+// 处理容器点击事件
+const handleContainerClick = (event: MouseEvent) => {
+  textSelection.hidePopup();
+};
+
 // 清空内容
 const clearInput = () => {
   userInput.value = "挖土机";
@@ -125,6 +146,29 @@ const abortRequest = () => {
     isLoading.value = false;
   }
 };
+
+// 处理弹窗翻译
+const handlePopupTranslate = async (text: string) => {
+  if (!text.trim()) return;
+  
+  // 将选中的文本放入输入框
+  userInput.value = text;
+  
+  // 延迟清除选择，确保弹窗先关闭
+  setTimeout(() => {
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+    }
+  }, 100);
+  
+  // 等待DOM更新后开始翻译
+  await nextTick();
+  
+  // 自动开始翻译（默认西语翻译）
+  await aiChat(RequestType.ES_TO_CN);
+};
+
 
 // 翻译函数（支持流式和普通输出）
 const aiChat = async (prompt: RequestType) => {
@@ -178,6 +222,11 @@ const aiChat = async (prompt: RequestType) => {
   } finally {
     isLoading.value = false;
     currentAbortController.value = null; // 清理AbortController
+    
+    // 翻译完成后重新初始化容器元素，确保文本选择功能正常
+    setTimeout(() => {
+      textSelection.reinitContainer();
+    }, 200);
   }
 };
 </script>
@@ -238,22 +287,22 @@ const aiChat = async (prompt: RequestType) => {
   }
 }
 
-/* 流式输出光标动画 */
-.streaming-cursor {
-  color: #409eff;
-  font-weight: bold;
-  animation: blink 1s infinite;
-  margin-left: 2px;
+
+/* 文本选择增强样式 */
+.markdown-result {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
-@keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
+.markdown-result::selection {
+  background-color: #409eff;
+  color: white;
+}
+
+.markdown-result::-moz-selection {
+  background-color: #409eff;
+  color: white;
 }
 </style>
