@@ -2,7 +2,7 @@
  * OpenAI API 服务模块
  */
 
-import { OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT, OPENAI_MODEL_DEEPSEEK, OPENAI_MODEL_GPT } from "@/constant";
+import { OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT, DEEPSEEK_MODEL_V3, OPENAI_MODEL_GPT, DEEPSEEK_MODEL_V3_250324 } from "@/constant";
 
 // 请求类型枚举
 export enum RequestType {
@@ -30,7 +30,6 @@ export interface StreamRequestParams extends BaseRequestParams {
 
 // API 配置
 export const OPENAI_CONFIG = {
-  MAX_TOKENS: OPENAI_MAX_TOKENS,
   TEMPERATURE: OPENAI_TEMPERATURE,
 };
 
@@ -136,10 +135,13 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
   }
 
   let model;
-  if (!apiBaseUrl.includes('api.openai.com')) {
-    model = OPENAI_MODEL_DEEPSEEK;
-  } else {
+  // 如果包含 ark.cn 则使用 deepseek 模型
+  if (apiBaseUrl.includes('ark.cn')) {
+    model = DEEPSEEK_MODEL_V3_250324;
+  } else if (apiBaseUrl.includes('api.openai.com')) {
     model = OPENAI_MODEL_GPT;
+  } else {
+    model = DEEPSEEK_MODEL_V3;
   }
 
   try {
@@ -226,10 +228,13 @@ export const callOpenAI = async (params: BaseRequestParams): Promise<string> => 
   }
 
   let model;
-  if (apiBaseUrl.includes('ark.cn-beijing.volces.com')) {
-    model = OPENAI_MODEL_DEEPSEEK;
-  } else {
+  // 如果包含 ark.cn 则使用 deepseek 模型, 如果是 openai.com 则使用 gpt-4o-mini 模型
+  if (apiBaseUrl.includes('ark.cn')) {
+    model = DEEPSEEK_MODEL_V3_250324;
+  } else if (apiBaseUrl.includes('api.openai.com')) {
     model = OPENAI_MODEL_GPT;
+  } else {
+    model = DEEPSEEK_MODEL_V3;
   }
 
   try {
