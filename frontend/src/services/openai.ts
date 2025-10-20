@@ -30,7 +30,6 @@ export interface StreamRequestParams extends BaseRequestParams {
 
 // API 配置
 export const OPENAI_CONFIG = {
-  MAX_TOKENS: OPENAI_MAX_TOKENS,
   TEMPERATURE: OPENAI_TEMPERATURE,
 };
 
