@@ -62,7 +62,7 @@ import TextSelectionPopup from './components/TextSelectionPopup.vue';
 const router = useRouter();
 const settingsStore = useSettingsStore();
 const userInput = ref('挖土机');
-const markdownResult = ref("La profundidad crítica del canal determina el flujo hidráulico");
+const markdownResult = ref("");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
