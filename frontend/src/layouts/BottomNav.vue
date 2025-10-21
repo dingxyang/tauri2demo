@@ -45,6 +45,11 @@
   display: flex;
   padding: 0.5rem 0;
   box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+  
+  /* Safe Area Insets 适配 */
+  padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom, 0px));
+  padding-left: var(--safe-area-inset-left, 0px);
+  padding-right: var(--safe-area-inset-right, 0px);
 }
 
 .nav-item {
@@ -87,6 +92,7 @@
 @media (max-width: 768px) {
   .bottom-nav {
     padding: 0.25rem 0;
+    padding-bottom: calc(0.25rem + var(--safe-area-inset-bottom, 0px));
   }
   
   .nav-item {

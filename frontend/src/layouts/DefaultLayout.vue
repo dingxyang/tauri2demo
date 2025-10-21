@@ -25,6 +25,7 @@ import BottomNav from './BottomNav.vue'
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 80px; /* 为底部导航栏留出空间 */
+  /* 为底部导航栏留出空间，包含 safe area bottom */
+  padding-bottom: calc(80px + var(--safe-area-inset-bottom, 0px));
 }
 </style>

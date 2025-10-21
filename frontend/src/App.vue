@@ -42,6 +42,12 @@ html, body {
   width: 100%;
   margin: 0;
   padding: 0;
+
+  /* Safe Area Insets 支持 */
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
 }
 
 #app {
@@ -74,6 +80,12 @@ html, body {
   /* 防止内容溢出导致横向滚动 */
   overflow-x: hidden;
   width: 100%;
+
+  /* Safe Area Insets 适配 */
+  padding-top: var(--safe-area-inset-top);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+  /* 底部 padding 由 BottomNav 组件处理 */
 }
 
 </style>
