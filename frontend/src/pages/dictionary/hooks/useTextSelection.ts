@@ -1,6 +1,7 @@
 // 文本选择组合式函数
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { throttle, debounce } from 'lodash-es'
+import { throttle, debounce } from 'lodash-es';
+import { isMobile } from '@/utils/os';
 
 export interface UseTextSelectionOptions {
   /** 容器元素选择器 */
@@ -9,8 +10,6 @@ export interface UseTextSelectionOptions {
   minTextLength?: number;
   /** 最大选择文本长度 */
   maxTextLength?: number;
-  /** 是否启用移动端支持 */
-  enableMobile?: boolean;
   /** 自动隐藏延迟（毫秒） */
   autoHideDelay?: number;
 }
@@ -68,7 +67,6 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     containerSelector = '.markdown-result',
     minTextLength = 1,
     maxTextLength = 200,
-    enableMobile = true,
     autoHideDelay = 3000
   } = options;
 
@@ -178,16 +176,19 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
 
   // 触摸事件处理（移动端）
   const handleTouchStart = (event: TouchEvent) => {
-    if (!enableMobile) return;
+    if (!isMobile) return;
     
     touchStartTime = Date.now();
     const touch = event.touches[0];
     touchStartPos = { x: touch.clientX, y: touch.clientY };
     isSelecting = true;
+    
+    // 阻止系统默认的长按菜单
+    event.preventDefault();
   };
 
   const handleTouchEnd = (event: TouchEvent) => {
-    if (!enableMobile) return;
+    if (!isMobile) return;
     
     isSelecting = false;
     
@@ -196,6 +197,8 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     
     // 长按选择文本
     if (touchDuration > 500) {
+      // 阻止系统默认行为
+      event.preventDefault();
       setTimeout(() => {
         handleTextSelection();
       }, 100);
@@ -203,7 +206,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
   };
 
   const handleTouchMove = (event: TouchEvent) => {
-    if (!enableMobile) return;
+    if (!isMobile) return;
     
     const touch = event.touches[0];
     const deltaX = Math.abs(touch.clientX - touchStartPos.x);
@@ -268,6 +271,15 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     }
   }, 100);
 
+  // 阻止上下文菜单（移动端长按菜单）
+  const handleContextMenu = (event: Event) => {
+    if (isMobile) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  };
+
   // 初始化
   const init = () => {
     // 查找容器元素，如果没找到就等待DOM更新后再试
@@ -281,12 +293,13 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     
     // 添加事件监听器
     document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    document.addEventListener('touchstart', handleTouchStart, { passive: false }); // 需要阻止默认行为
+    document.addEventListener('touchend', handleTouchEnd, { passive: false }); // 需要阻止默认行为
     document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('contextmenu', handleContextMenu); // 阻止上下文菜单
   };
 
   // 清理
@@ -298,6 +311,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     document.removeEventListener('click', handleDocumentClick);
     document.removeEventListener('keydown', handleKeyDown);
     document.removeEventListener('selectionchange', handleSelectionChange);
+    document.removeEventListener('contextmenu', handleContextMenu);
     
     clearHideTimer();
   };

@@ -26,10 +26,10 @@
         <div class="loading-spinner"></div>
         正在会话中...
       </div>
-      <!-- 使用Markdown渲染翻译结果 -->
+      <!-- 使用Markdown渲译结果 -->
       <div
         v-if="markdownResult || (isLoading && streamingText)"
-        class="markdown-result"
+        :class="['markdown-result', { 'disable-context-menu': isMobile }]"
       >
         <div v-html="markdownResult"></div>
       </div>
@@ -58,6 +58,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useShikiHighlighter } from './hooks/useShikiHighlighter';
 import { useTextSelection } from './hooks/useTextSelection';
 import TextSelectionPopup from './components/TextSelectionPopup.vue';
+import { isMobile } from '@/utils/os';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();
@@ -73,7 +74,6 @@ const textSelection = useTextSelection({
   containerSelector: '.markdown-result',
   minTextLength: 1,
   maxTextLength: 100,
-  enableMobile: true,
   autoHideDelay: 5000
 });
 
@@ -294,6 +294,11 @@ const aiChat = async (prompt: RequestType) => {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
+  
+  /* 移动端触摸优化 */
+  -webkit-touch-callout: none; /* 禁用iOS长按菜单 */
+  -webkit-tap-highlight-color: transparent; /* 禁用点击高亮 */
+  touch-action: manipulation; /* 优化触摸响应 */
 }
 
 .markdown-result::selection {
@@ -304,5 +309,15 @@ const aiChat = async (prompt: RequestType) => {
 .markdown-result::-moz-selection {
   background-color: #409eff;
   color: white;
+}
+
+/* 移动端禁用上下文菜单的样式类 */
+.disable-context-menu {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 </style>
