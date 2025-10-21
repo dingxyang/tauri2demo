@@ -2,7 +2,7 @@
  * OpenAI API 服务模块
  */
 
-import { OPENAI_MAX_TOKENS, OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT, DEEPSEEK_MODEL_V3, OPENAI_MODEL_GPT, DEEPSEEK_MODEL_V3_250324 } from "@/constant";
+import { OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT, DEEPSEEK_MODEL_V3, OPENAI_MODEL_GPT, DEEPSEEK_MODEL_V3_250324 } from "@/constant";
 
 // 请求类型枚举
 export enum RequestType {
@@ -88,7 +88,6 @@ const createRequestBody = (params: BaseRequestParams) => {
   return {
     model,
     messages,
-    max_tokens: OPENAI_CONFIG.MAX_TOKENS,
     temperature: OPENAI_CONFIG.TEMPERATURE,
     ...(stream && { stream: true })
   };
