@@ -1,13 +1,13 @@
 {
-  "name": "tauri2demo",
+  "name": "spanish-assistant",
   "version": "0.0.1",
   "description": "Tauri 2 Demo Application",
   "private": true,
   "scripts": {
     "dev": "pnpm tauri dev",
-    "start": "pnpm --filter tauri2demo dev",
-    "build": "pnpm --filter tauri2demo build",
-    "preview": "pnpm --filter tauri2demo preview"
+    "start": "pnpm --filter spanish-assistant-frontend dev",
+    "build": "pnpm --filter spanish-assistant-frontend build",
+    "preview": "pnpm --filter spanish-assistant-frontend preview"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"
