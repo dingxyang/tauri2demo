@@ -16,10 +16,10 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.tauri2demo.app"
+    namespace = "com.spanishassistant.app"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.tauri2demo.app"
+        applicationId = "com.spanishassistant.app"
         minSdk = 26
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
@@ -39,6 +39,9 @@ android {
             storePassword = keystoreProperties["password"] as String
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -53,13 +56,15 @@ android {
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     kotlinOptions {
         jvmTarget = "1.8"
-    }
-    buildFeatures {
-        buildConfig = true
     }
 }
 
