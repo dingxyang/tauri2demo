@@ -1,6 +1,6 @@
 import { type as osType } from "@tauri-apps/plugin-os";
 
-const OS_TYPE = await osType();
+const OS_TYPE = osType();
 
 export const isWindows = OS_TYPE === 'windows';
 export const isMac = OS_TYPE === 'macos';
