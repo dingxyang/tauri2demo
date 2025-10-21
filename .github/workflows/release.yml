@@ -82,6 +82,12 @@ jobs:
           base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
           echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
 
+          # 输出一下 secrets.ANDROID_KEY_ALIAS
+          echo "ANDROID_KEY_ALIAS: ${ANDROID_KEY_ALIAS}"
+          echo "ANDROID_KEY_PASSWORD: ${ANDROID_KEY_PASSWORD}"
+          echo "ANDROID_KEY_BASE64: ${ANDROID_KEY_BASE64}"
+    
+
           popd
           version=$PACKAGE_VERSION
           

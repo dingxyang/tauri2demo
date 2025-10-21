@@ -16,3 +16,5 @@ target
 
 dist/
 pnpm-lock.yaml
+
+backend/src-tauri/gen/android/
