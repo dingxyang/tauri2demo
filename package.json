@@ -1,13 +1,13 @@
 {
-  "name": "西语助手",
+  "name": "spanish-assistant",
   "version": "0.0.1",
   "description": "西语助手",
   "private": true,
   "scripts": {
     "dev": "pnpm tauri dev",
-    "start": "pnpm --filter spanishAssistant dev",
-    "build": "pnpm --filter spanishAssistant build",
-    "preview": "pnpm --filter spanishAssistant preview"
+    "start": "pnpm --filter spanish-assistant dev",
+    "build": "pnpm --filter spanish-assistant build",
+    "preview": "pnpm --filter spanish-assistant preview"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

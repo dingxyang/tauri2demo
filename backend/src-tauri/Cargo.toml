@@ -1,7 +1,7 @@
 [package]
-name = "tauri2demo"
+name = "spanishassistant"
 version = "0.0.1"
-description = "A Tauri App"
+description = "spanish assistant"
 authors = ["you"]
 edition = "2021"
 

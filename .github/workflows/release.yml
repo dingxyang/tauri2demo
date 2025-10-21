@@ -87,12 +87,12 @@ jobs:
           
           # 构建 universal release APK
           pnpm tauri android build
-          universal_apk=tauri2demo_${version}_universal.apk
+          universal_apk=spanishassistant_${version}_universal.apk
           cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk $universal_apk
           
           # 构建 arm64 release APK
           pnpm tauri android build -t aarch64
-          arm64_apk=tauri2demo_${version}_arm64.apk
+          arm64_apk=spanishassistant_${version}_arm64.apk
           cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk $arm64_apk
 
           echo "Built APK files:"
