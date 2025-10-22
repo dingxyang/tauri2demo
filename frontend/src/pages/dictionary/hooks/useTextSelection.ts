@@ -182,9 +182,6 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     const touch = event.touches[0];
     touchStartPos = { x: touch.clientX, y: touch.clientY };
     isSelecting = true;
-    
-    // 阻止系统默认的长按菜单
-    event.preventDefault();
   };
 
   const handleTouchEnd = (event: TouchEvent) => {
@@ -198,7 +195,6 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     // 长按选择文本
     if (touchDuration > 500) {
       // 阻止系统默认行为
-      event.preventDefault();
       setTimeout(() => {
         handleTextSelection();
       }, 100);

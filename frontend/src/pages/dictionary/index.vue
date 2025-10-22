@@ -294,11 +294,6 @@ const aiChat = async (prompt: RequestType) => {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
-  
-  /* 移动端触摸优化 */
-  -webkit-touch-callout: none; /* 禁用iOS长按菜单 */
-  -webkit-tap-highlight-color: transparent; /* 禁用点击高亮 */
-  touch-action: manipulation; /* 优化触摸响应 */
 }
 
 .markdown-result::selection {
@@ -313,11 +308,11 @@ const aiChat = async (prompt: RequestType) => {
 
 /* 移动端禁用上下文菜单的样式类 */
 .disable-context-menu {
-  -webkit-touch-callout: none;
+  /* -webkit-touch-callout: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  touch-action: manipulation;
+  touch-action: manipulation; */
 }
 </style>
