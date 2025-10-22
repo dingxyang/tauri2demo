@@ -124,8 +124,6 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
 
   // 处理文本选择
   const handleTextSelection = throttle(() => {
-    if (isSelecting) return;
-    
     // 重新查找容器元素（防止DOM更新后元素失效）
     if (!containerElement || !document.contains(containerElement)) {
       containerElement = document.querySelector(containerSelector);
@@ -164,7 +162,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     }
 
     showPopup(info);
-  }, 100);
+  }, isMobile ? 200 : 100);
 
   // 鼠标事件处理
   const handleMouseUp = (event: MouseEvent) => {
@@ -181,24 +179,25 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     touchStartTime = Date.now();
     const touch = event.touches[0];
     touchStartPos = { x: touch.clientX, y: touch.clientY };
-    isSelecting = true;
+    isSelecting = false; // 初始化为false，等待长按判断
   };
 
   const handleTouchEnd = (event: TouchEvent) => {
     if (!isMobile) return;
     
-    isSelecting = false;
-    
     const touchEndTime = Date.now();
     const touchDuration = touchEndTime - touchStartTime;
     
-    // 长按选择文本
-    if (touchDuration > 500) {
-      // 阻止系统默认行为
-      setTimeout(() => {
-        handleTextSelection();
-      }, 100);
+    // 短按时隐藏弹窗
+    if (touchDuration < 300) {
+      hidePopup();
+      return;
     }
+    
+    // 长按后延迟检查选择，给系统时间完成文本选择
+    setTimeout(() => {
+      handleTextSelection();
+    }, 200);
   };
 
   const handleTouchMove = (event: TouchEvent) => {
@@ -252,7 +251,10 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
 
   // 选择变化处理
   const handleSelectionChange = debounce(() => {
-    if (!isSelecting && isVisible.value) {
+    // 移动端需要更长的延迟来等待选择完成
+    const delay = isMobile ? 300 : 150;
+    
+    if (isVisible.value) {
       const selection = window.getSelection();
       if (!selection || selection.toString().trim() === '') {
         // 延迟隐藏，避免在弹窗操作过程中过早隐藏
@@ -262,17 +264,36 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
           if (!currentSelection || currentSelection.toString().trim() === '') {
             hidePopup();
           }
-        }, 150);
+        }, delay);
+      } else {
+        // 移动端检测到新的选择时，重新处理
+        if (isMobile) {
+          setTimeout(() => {
+            handleTextSelection();
+          }, 100);
+        }
+      }
+    } else if (isMobile) {
+      // 移动端在没有显示弹窗时，如果检测到选择，尝试显示弹窗
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim()) {
+        setTimeout(() => {
+          handleTextSelection();
+        }, 200);
       }
     }
-  }, 100);
+  }, isMobile ? 200 : 100);
 
-  // 阻止上下文菜单（移动端长按菜单）
+  // 处理上下文菜单（移动端长按菜单）
   const handleContextMenu = (event: Event) => {
     if (isMobile) {
-      event.preventDefault();
-      event.stopPropagation();
-      return false;
+      // 不完全阻止上下文菜单，让系统的文本选择功能正常工作
+      // 只在已经有弹窗显示时才阻止
+      if (isVisible.value) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+      }
     }
   };
 
@@ -289,13 +310,13 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     
     // 添加事件监听器
     document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchstart', handleTouchStart, { passive: false }); // 需要阻止默认行为
-    document.addEventListener('touchend', handleTouchEnd, { passive: false }); // 需要阻止默认行为
+    document.addEventListener('touchstart', handleTouchStart, { passive: true }); // 移动端允许默认行为
+    document.addEventListener('touchend', handleTouchEnd, { passive: true }); // 移动端允许默认行为
     document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('selectionchange', handleSelectionChange);
-    document.addEventListener('contextmenu', handleContextMenu); // 阻止上下文菜单
+    document.addEventListener('contextmenu', handleContextMenu, { passive: false }); // 需要能够阻止默认行为
   };
 
   // 清理
@@ -340,6 +361,19 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     showPopup(info);
   };
 
+  // 移动端专用：检查并处理文本选择
+  const checkMobileSelection = () => {
+    if (!isMobile) return;
+    
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim()) {
+      // 延迟处理，确保选择完成
+      setTimeout(() => {
+        handleTextSelection();
+      }, 100);
+    }
+  };
+
   // 重新初始化容器元素
   const reinitContainer = () => {
     containerElement = document.querySelector(containerSelector);
@@ -376,6 +410,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     setSelectedText,
     clearSelection,
     reinitContainer,
+    checkMobileSelection,
     
     // 事件处理器（用于手动绑定）
     handleMouseUp,

@@ -226,6 +226,8 @@ const aiChat = async (prompt: RequestType) => {
     // 翻译完成后重新初始化容器元素，确保文本选择功能正常
     setTimeout(() => {
       textSelection.reinitContainer();
+      // 移动端额外检查是否有文本选择
+      textSelection.checkMobileSelection();
     }, 200);
   }
 };
@@ -306,13 +308,14 @@ const aiChat = async (prompt: RequestType) => {
   color: white;
 }
 
-/* 移动端禁用上下文菜单的样式类 */
+/* 移动端优化文本选择的样式类 */
 .disable-context-menu {
-  /* -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  touch-action: manipulation; */
+  /* 移动端允许文本选择，但优化触摸行为 */
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
 }
 </style>

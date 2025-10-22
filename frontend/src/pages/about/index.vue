@@ -4,35 +4,107 @@
     <header class="header">
       <h1>说明页</h1>
     </header>
-    
     <main class="main-content">
-      <div class="about-content">
-        <h2>应用说明</h2>
-        <div class="about-text">
-          <p>这是一个使用 Tauri + Vue 3 构建的跨平台应用。</p>
-          <p>主要功能包括：</p>
-          <ul>
-            <li>项目列表展示</li>
-            <li>详情页面查看</li>
-            <li>移动端适配</li>
-            <li>深色模式支持</li>
-          </ul>
-          <p>技术栈：</p>
-          <ul>
-            <li>前端：Vue 3 + TypeScript</li>
-            <li>后端：Rust + Tauri</li>
-            <li>移动端：Tauri Mobile</li>
-          </ul>
-          <p>版本：1.0.0</p>
-          <p>开发者：Tauri Demo Team</p>
-        </div>
+      <div class="debug-info">
+        <h3>调试信息</h3>
+        <p>isMobile: {{ isMobile }}</p>
+        <p>Safe Area Insets:</p>
+        <ul>
+          <li>Top: {{ safeAreaInsets.top }}</li>
+          <li>Right: {{ safeAreaInsets.right }}</li>
+          <li>Bottom: {{ safeAreaInsets.bottom }}</li>
+          <li>Left: {{ safeAreaInsets.left }}</li>
+        </ul>
+        <p>Window Info:</p>
+        <ul>
+          <li>Window Height: {{ windowInfo.height }}px</li>
+          <li>Window Width: {{ windowInfo.width }}px</li>
+          <li>Screen Height: {{ windowInfo.screenHeight }}px</li>
+          <li>Screen Width: {{ windowInfo.screenWidth }}px</li>
+        </ul>
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-// 说明页组件
+import { ref, onMounted } from 'vue';
+import { isMobile } from '@/utils/os';
+
+// 响应式数据
+const safeAreaInsets = ref({
+  top: '0px',
+  right: '0px',
+  bottom: '0px',
+  left: '0px'
+});
+
+const windowInfo = ref({
+  height: 0,
+  width: 0,
+  screenHeight: 0,
+  screenWidth: 0
+});
+
+// 获取CSS变量值
+const getSafeAreaInsets = () => {
+  const root = document.documentElement;
+  const computedStyle = getComputedStyle(root);
+  
+  safeAreaInsets.value = {
+    top: computedStyle.getPropertyValue('--safe-area-inset-top').trim() || '0px',
+    right: computedStyle.getPropertyValue('--safe-area-inset-right').trim() || '0px',
+    bottom: computedStyle.getPropertyValue('--safe-area-inset-bottom').trim() || '0px',
+    left: computedStyle.getPropertyValue('--safe-area-inset-left').trim() || '0px'
+  };
+  
+  console.log('Safe Area Insets:', safeAreaInsets.value);
+};
+
+// 获取窗口信息
+const getWindowInfo = () => {
+  windowInfo.value = {
+    height: window.innerHeight,
+    width: window.innerWidth,
+    screenHeight: window.screen.height,
+    screenWidth: window.screen.width
+  };
+  
+  console.log('Window Info:', windowInfo.value);
+};
+
+// 监听窗口大小变化
+const handleResize = () => {
+  getSafeAreaInsets();
+  getWindowInfo();
+};
+
+onMounted(() => {
+  getSafeAreaInsets();
+  getWindowInfo();
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', handleResize);
+  
+  // 监听设备方向变化（移动端）
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      handleResize();
+    }, 100);
+  });
+  
+  // 定期检查CSS变量变化
+  const interval = setInterval(() => {
+    getSafeAreaInsets();
+  }, 1000);
+  
+  // 清理
+  return () => {
+    window.removeEventListener('resize', handleResize);
+    window.removeEventListener('orientationchange', handleResize);
+    clearInterval(interval);
+  };
+});
 </script>
 
 
@@ -89,6 +161,38 @@
 
 .about-text li {
   margin-bottom: 0.5rem;
+}
+
+.debug-info {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+}
+
+.debug-info h3 {
+  margin: 0 0 1rem 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.debug-info p {
+  margin: 0.5rem 0;
+  color: #6c757d;
+}
+
+.debug-info ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.debug-info li {
+  margin: 0.25rem 0;
+  color: #495057;
 }
 
 /* 移动端适配 */
