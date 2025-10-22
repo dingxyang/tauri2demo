@@ -92,8 +92,18 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
       return;
     }
     
-    selectionInfo.value = info;
-    selectedText.value = info.text;
+    // 获取当前实际选中的文本，确保使用最新的选择
+    const currentSelection = window.getSelection();
+    const currentText = currentSelection?.toString().trim();
+    
+    // 使用当前实际选中的文本，如果没有则使用传入的文本
+    const actualText = currentText || info.text;
+    
+    selectionInfo.value = {
+      ...info,
+      text: actualText
+    };
+    selectedText.value = actualText;
     selectionRect.value = info.rect;
     isVisible.value = true;
     
@@ -139,8 +149,12 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
 
     const { text } = info;
     
+    // 对于用户手动选择的文本，放宽长度限制
+    const isManualSelection = isUserSelection();
+    const effectiveMaxLength = isManualSelection ? maxTextLength * 2 : maxTextLength;
+    
     // 检查文本长度
-    if (text.length < minTextLength || text.length > maxTextLength) {
+    if (text.length < minTextLength || text.length > effectiveMaxLength) {
       hidePopup();
       return;
     }
@@ -181,6 +195,40 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     const touch = event.touches[0];
     touchStartPos = { x: touch.clientX, y: touch.clientY };
     isSelecting = true; // 标记开始选择
+    
+    // 检查是否点击在已选择的文本上
+    const existingSelection = window.getSelection();
+    const existingText = existingSelection?.toString().trim();
+    
+    if (existingText && existingText.length > 0) {
+      // 如果已经有选择的文本，检查是否点击在选择区域内
+      const ranges = [];
+      for (let i = 0; i < existingSelection.rangeCount; i++) {
+        ranges.push(existingSelection.getRangeAt(i));
+      }
+      
+      const clickedElement = document.elementFromPoint(touch.clientX, touch.clientY);
+      let clickedInSelection = false;
+      
+      for (const range of ranges) {
+        if (range.intersectsNode(clickedElement as Node)) {
+          clickedInSelection = true;
+          break;
+        }
+      }
+      
+      if (clickedInSelection) {
+        // 点击在已选择的文本上，不清除弹窗，直接显示
+        clearLongPressTimer();
+        setTimeout(() => {
+          const info = getSelectionInfo();
+          if (info) {
+            showPopup(info);
+          }
+        }, 100);
+        return;
+      }
+    }
     
     // 清除之前的弹窗和定时器
     hidePopup();
@@ -262,7 +310,10 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     }
     
     hidePopup();
-    clearSelection();
+    // 不立即清除选择，给用户时间重新选择
+    setTimeout(() => {
+      clearSelection();
+    }, 100);
   };
 
   // 键盘事件处理
@@ -289,21 +340,15 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
             hidePopup();
           }
         }, delay);
-      } else {
-        // 移动端检测到新的选择时，重新处理
-        if (isMobile) {
-          setTimeout(() => {
-            handleTextSelection();
-          }, 100);
-        }
       }
-    } else if (isMobile) {
-      // 移动端在没有显示弹窗时，如果检测到选择，尝试显示弹窗
+      // 移动端不在这里重新处理选择，避免覆盖用户选择
+    } else if (!isMobile) {
+      // 只有桌面端才在这里处理新的选择
       const selection = window.getSelection();
       if (selection && selection.toString().trim()) {
         setTimeout(() => {
           handleTextSelection();
-        }, 200);
+        }, 100);
       }
     }
   }, isMobile ? 200 : 100);
@@ -391,15 +436,63 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     if (selection && selection.toString().trim()) {
       // 延迟处理，确保选择完成
       setTimeout(() => {
-        handleTextSelection();
+        const info = getSelectionInfo();
+        if (info) {
+          showPopup(info);
+        }
       }, 100);
     }
+  };
+
+  // 检查是否是用户手动选择的文本
+  const isUserSelection = (): boolean => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+    
+    const range = selection.getRangeAt(0);
+    const text = selection.toString().trim();
+    
+    // 如果选择的文本长度大于20个字符，很可能是用户手动选择的
+    // 或者选择跨越了多个单词
+    if (text.length > 20 || text.includes(' ')) {
+      return true;
+    }
+    
+    return false;
   };
 
   // 处理长按事件
   const handleLongPress = (event: TouchEvent) => {
     if (!isMobile) return;
     
+    // 首先检查是否已经有用户手动选择的文本
+    if (isUserSelection()) {
+      // 如果是用户手动选择的文本，直接使用用户的选择
+      setTimeout(() => {
+        const info = getSelectionInfo();
+        if (info) {
+          showPopup(info);
+        }
+      }, 50);
+      return;
+    }
+    
+    // 检查是否有任何现有选择
+    const existingSelection = window.getSelection();
+    const existingText = existingSelection?.toString().trim();
+    
+    if (existingText && existingText.length > 0) {
+      // 如果有现有选择但不是用户手动选择的，也直接使用
+      setTimeout(() => {
+        const info = getSelectionInfo();
+        if (info) {
+          showPopup(info);
+        }
+      }, 50);
+      return;
+    }
+    
+    // 如果没有现有选择，才创建新的选择
     const touch = event.changedTouches[0];
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
     
@@ -494,6 +587,21 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     }
   };
 
+  // 重置翻译后的状态
+  const resetAfterTranslation = () => {
+    // 重新初始化容器
+    reinitContainer();
+    
+    // 清除可能存在的定时器
+    clearHideTimer();
+    clearLongPressTimer();
+    
+    // 重置内部状态
+    isSelecting = false;
+    touchStartTime = 0;
+    touchStartPos = { x: 0, y: 0 };
+  };
+
   // 生命周期钩子
   onMounted(() => {
     nextTick(() => {
@@ -520,6 +628,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     clearSelection,
     reinitContainer,
     checkMobileSelection,
+    resetAfterTranslation,
     
     // 事件处理器（用于手动绑定）
     handleMouseUp,
