@@ -19,12 +19,12 @@
     </router-link>
     
     <router-link 
-      to="/about"
+      to="/settings"
       class="nav-item" 
       :class="{ active: $route.name === 'About' }"
     >
-      <div class="nav-icon">ℹ️</div>
-      <span class="nav-text">说明</span>
+      <div class="nav-icon">⚙️</div>
+      <span class="nav-text">设置</span>
     </router-link>
   </nav>
 </template>

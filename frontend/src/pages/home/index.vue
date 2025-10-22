@@ -28,12 +28,12 @@ function goToDetail(item: ListItem) {
 </script>
 
 <template>
-  <div class="home-page">
-    <header class="header">
+  <el-container class="home-page">
+    <el-header class="flex-header">
       <h1>我的应用</h1>
-    </header>
+    </el-header>
     
-    <main class="main-content">
+    <el-main class="main-content">
       <div class="list-container">
         <h2>项目列表</h2>
         <div class="list">
@@ -48,27 +48,11 @@ function goToDetail(item: ListItem) {
           </div>
         </div>
       </div>
-    </main>
-  </div>
+    </el-main>
+  </el-container>
 </template>
 
 <style scoped>
-.header {
-  background-color: #007AFF;
-  color: white;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.header h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
 .main-content {
   flex: 1;
   padding: 1rem;

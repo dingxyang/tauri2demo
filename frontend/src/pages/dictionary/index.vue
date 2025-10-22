@@ -26,10 +26,10 @@
         <div class="loading-spinner"></div>
         正在会话中...
       </div>
-      <!-- 使用Markdown渲染翻译结果 -->
+      <!-- 使用Markdown渲译结果 -->
       <div
         v-if="markdownResult || (isLoading && streamingText)"
-        class="markdown-result"
+        :class="['markdown-result', { 'disable-context-menu': isMobile }]"
       >
         <div v-html="markdownResult"></div>
       </div>
@@ -58,11 +58,12 @@ import { useSettingsStore } from "@/stores/settings";
 import { useShikiHighlighter } from './hooks/useShikiHighlighter';
 import { useTextSelection } from './hooks/useTextSelection';
 import TextSelectionPopup from './components/TextSelectionPopup.vue';
+import { isMobile } from '@/utils/os';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();
 const userInput = ref('挖土机');
-const markdownResult = ref("");
+const markdownResult = ref("abrasión 翻译成中文");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
@@ -73,7 +74,6 @@ const textSelection = useTextSelection({
   containerSelector: '.markdown-result',
   minTextLength: 1,
   maxTextLength: 100,
-  enableMobile: true,
   autoHideDelay: 5000
 });
 
@@ -151,22 +151,39 @@ const abortRequest = () => {
 const handlePopupTranslate = async (text: string) => {
   if (!text.trim()) return;
   
-  // 将选中的文本放入输入框
-  userInput.value = text;
+  // 获取当前实际选中的文本，而不是弹窗传递的文本
+  const selection = window.getSelection();
+  const actualSelectedText = selection?.toString().trim();
   
-  // 延迟清除选择，确保弹窗先关闭
-  setTimeout(() => {
-    const selection = window.getSelection();
-    if (selection) {
-      selection.removeAllRanges();
-    }
-  }, 100);
+  // 优先使用实际选中的文本，如果没有则使用传递的文本
+  const textToTranslate = actualSelectedText || text;
+  
+  // 将选中的文本放入输入框
+  userInput.value = textToTranslate;
+  
+  // 先隐藏弹窗
+  textSelection.hidePopup();
+  
+  // 延迟清除选择，确保翻译完成后再清除
+  const clearSelectionLater = () => {
+    setTimeout(() => {
+      const currentSelection = window.getSelection();
+      if (currentSelection) {
+        currentSelection.removeAllRanges();
+      }
+    }, 1000); // 延长到1秒后清除
+  };
   
   // 等待DOM更新后开始翻译
   await nextTick();
   
   // 自动开始翻译（默认西语翻译）
-  await aiChat(RequestType.ES_TO_CN);
+  try {
+    await aiChat(RequestType.ES_TO_CN);
+  } finally {
+    // 翻译完成后清除选择
+    clearSelectionLater();
+  }
 };
 
 
@@ -223,10 +240,12 @@ const aiChat = async (prompt: RequestType) => {
     isLoading.value = false;
     currentAbortController.value = null; // 清理AbortController
     
-    // 翻译完成后重新初始化容器元素，确保文本选择功能正常
+    // 翻译完成后重置文本选择状态，确保功能正常
     setTimeout(() => {
-      textSelection.reinitContainer();
-    }, 200);
+      textSelection.resetAfterTranslation();
+      // 移动端额外检查是否有文本选择
+      textSelection.checkMobileSelection();
+    }, 300); // 增加延迟，确保DOM完全更新
   }
 };
 </script>
@@ -304,5 +323,19 @@ const aiChat = async (prompt: RequestType) => {
 .markdown-result::-moz-selection {
   background-color: #409eff;
   color: white;
+}
+
+/* 移动端优化文本选择的样式类 */
+.disable-context-menu {
+  /* 移动端禁用系统上下文菜单，但保持文本选择能力 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+  
+  /* 防止长按时出现系统选择框 */
+  -webkit-tap-highlight-color: transparent;
 }
 </style>

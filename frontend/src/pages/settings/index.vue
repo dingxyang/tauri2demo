@@ -2,12 +2,12 @@
 <template>
   <el-container class="settings-container">
     <el-header class="settings-header flex-header">
-      <div>{{ $t('settings.title') }}</div>
+      <h2>{{ $t('settings.title') }}</h2>
       <el-icon @click="goToDictionary"><CloseBold /></el-icon>
     </el-header>
     <el-main class="settings-main">
-      <el-form :model="settings" label-width="120px" class="settings-form">
-        <el-alert class="mb-16" title="url需携带版本号vxx，并忽略/chat/completions,eg: https://api.openai.com/v1" type="info" />
+      <el-form :label-position="isMobile ? 'top' : 'left'" :model="settings" label-width="120px" class="settings-form">
+        <!-- <el-alert class="mb-16" title="url需携带版本号vxx，并忽略/chat/completions,eg: https://api.openai.com/v1" type="info" /> -->
         <el-form-item :label="$t('settings.apiBaseUrl')">
           <el-input v-model="settings.openai.apiBaseUrl" :placeholder="OPENAI_BASE_URL"/>
         </el-form-item>
@@ -29,6 +29,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useRouter } from "vue-router";
 import { OPENAI_BASE_URL } from "@/constant";
 import { CloseBold } from "@element-plus/icons-vue";
+import { isMobile } from "@/utils/os";
 
 const settingsStore = useSettingsStore();   
 const router = useRouter();
@@ -58,8 +59,6 @@ const saveSettings = () => {
 
 <style scoped>
 .settings-header {
-  background-color: #409eff;
-  color: white;
   display: flex;
   align-items: center;
 }

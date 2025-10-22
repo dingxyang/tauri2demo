@@ -18,9 +18,9 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/dictionary/index.vue')
       },
       {
-        path: '/about',
-        name: 'About',
-        component: () => import('@/pages/about/index.vue')
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('@/pages/settings/index.vue')
       }
     ]
   },
@@ -31,11 +31,11 @@ const routes: RouteRecordRaw[] = [
     props: true
   },
   // 系统设置页面
-  {
-    path: '/settings',
-    name: 'Settings',
-    component: () => import('@/pages/settings/index.vue')
-  }
+  // {
+  //   path: '/settings',
+  //   name: 'Settings',
+  //   component: () => import('@/pages/settings/index.vue')
+  // }
 ]
 
 const router = createRouter({
