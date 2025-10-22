@@ -82,9 +82,9 @@ html, body {
   width: 100%;
 
   /* Safe Area Insets 适配 */
-  padding-top: var(--safe-area-inset-top);
-  padding-left: var(--safe-area-inset-left);
-  padding-right: var(--safe-area-inset-right);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   /* 底部 padding 由 BottomNav 组件处理 */
 }
 

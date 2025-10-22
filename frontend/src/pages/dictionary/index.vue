@@ -310,12 +310,15 @@ const aiChat = async (prompt: RequestType) => {
 
 /* 移动端优化文本选择的样式类 */
 .disable-context-menu {
-  /* 移动端允许文本选择，但优化触摸行为 */
-  -webkit-touch-callout: default;
+  /* 移动端禁用系统上下文菜单，但保持文本选择能力 */
+  -webkit-touch-callout: none;
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
   touch-action: manipulation;
+  
+  /* 防止长按时出现系统选择框 */
+  -webkit-tap-highlight-color: transparent;
 }
 </style>

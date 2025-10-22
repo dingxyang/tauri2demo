@@ -45,11 +45,28 @@
   display: flex;
   padding: 0.5rem 0;
   box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+  z-index: 1000;
   
-  /* Safe Area Insets 适配 */
-  padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom, 0px));
-  padding-left: var(--safe-area-inset-left, 0px);
-  padding-right: var(--safe-area-inset-right, 0px);
+  /* Safe Area Insets 适配 - 确保背景延伸到安全区域 */
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  
+  /* 背景延伸到安全区域底部 */
+  background: linear-gradient(to bottom, white 0%, white calc(100% - env(safe-area-inset-bottom, 0px)), white 100%);
+  
+  /* 使用 ::after 伪元素确保背景完全覆盖安全区域 */
+}
+
+.bottom-nav::after {
+  content: '';
+  position: absolute;
+  bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: white;
+  z-index: -1;
 }
 
 .nav-item {
@@ -92,7 +109,7 @@
 @media (max-width: 768px) {
   .bottom-nav {
     padding: 0.25rem 0;
-    padding-bottom: calc(0.25rem + var(--safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
   }
   
   .nav-item {

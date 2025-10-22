@@ -82,6 +82,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
   let isSelecting = false;
   let touchStartTime = 0;
   let touchStartPos = { x: 0, y: 0 };
+  let longPressTimer: NodeJS.Timeout | null = null;
 
   // 显示弹窗
   const showPopup = (info: TextSelectionInfo) => {
@@ -179,25 +180,35 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     touchStartTime = Date.now();
     const touch = event.touches[0];
     touchStartPos = { x: touch.clientX, y: touch.clientY };
-    isSelecting = false; // 初始化为false，等待长按判断
+    isSelecting = true; // 标记开始选择
+    
+    // 清除之前的弹窗和定时器
+    hidePopup();
+    clearLongPressTimer();
+    
+    // 设置长按定时器
+    longPressTimer = setTimeout(() => {
+      if (isSelecting) {
+        // 长按触发，尝试创建选择
+        handleLongPress(event);
+      }
+    }, 500); // 500ms 长按
   };
 
   const handleTouchEnd = (event: TouchEvent) => {
     if (!isMobile) return;
     
+    isSelecting = false;
+    clearLongPressTimer();
+    
     const touchEndTime = Date.now();
     const touchDuration = touchEndTime - touchStartTime;
     
-    // 短按时隐藏弹窗
-    if (touchDuration < 300) {
+    // 如果是短按，隐藏弹窗
+    if (touchDuration < 500) {
       hidePopup();
-      return;
     }
-    
-    // 长按后延迟检查选择，给系统时间完成文本选择
-    setTimeout(() => {
-      handleTextSelection();
-    }, 200);
+    // 长按的处理已经在定时器中完成
   };
 
   const handleTouchMove = (event: TouchEvent) => {
@@ -207,9 +218,22 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     const deltaX = Math.abs(touch.clientX - touchStartPos.x);
     const deltaY = Math.abs(touch.clientY - touchStartPos.y);
     
-    // 如果移动距离较大，认为是滑动而不是选择
-    if (deltaX > 10 || deltaY > 10) {
+    // 如果移动距离较大，认为是滑动而不是长按选择
+    if (deltaX > 15 || deltaY > 15) {
       isSelecting = false;
+      clearLongPressTimer();
+      // 如果正在显示弹窗，隐藏它
+      if (isVisible.value) {
+        hidePopup();
+      }
+    }
+  };
+
+  // 清除长按定时器
+  const clearLongPressTimer = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
     }
   };
 
@@ -287,13 +311,10 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
   // 处理上下文菜单（移动端长按菜单）
   const handleContextMenu = (event: Event) => {
     if (isMobile) {
-      // 不完全阻止上下文菜单，让系统的文本选择功能正常工作
-      // 只在已经有弹窗显示时才阻止
-      if (isVisible.value) {
-        event.preventDefault();
-        event.stopPropagation();
-        return false;
-      }
+      // 移动端始终阻止系统上下文菜单，使用自定义弹窗
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
     }
   };
 
@@ -310,8 +331,8 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     
     // 添加事件监听器
     document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchstart', handleTouchStart, { passive: true }); // 移动端允许默认行为
-    document.addEventListener('touchend', handleTouchEnd, { passive: true }); // 移动端允许默认行为
+    document.addEventListener('touchstart', handleTouchStart, { passive: false }); // 需要阻止默认行为
+    document.addEventListener('touchend', handleTouchEnd, { passive: false }); // 需要阻止默认行为
     document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handleKeyDown);
@@ -331,6 +352,7 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     document.removeEventListener('contextmenu', handleContextMenu);
     
     clearHideTimer();
+    clearLongPressTimer();
   };
 
   // 手动触发选择处理
@@ -372,6 +394,93 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
         handleTextSelection();
       }, 100);
     }
+  };
+
+  // 处理长按事件
+  const handleLongPress = (event: TouchEvent) => {
+    if (!isMobile) return;
+    
+    const touch = event.changedTouches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (!element) return;
+    
+    // 检查是否在容器内
+    if (containerElement && !containerElement.contains(element)) {
+      return;
+    }
+    
+    // 查找最近的文本节点
+    const textNode = findNearestTextNode(element, touch.clientX, touch.clientY);
+    if (!textNode) return;
+    
+    // 创建文本选择
+    const selectedText = createTextSelection(textNode, touch.clientX, touch.clientY);
+    if (selectedText) {
+      // 获取选择信息并显示弹窗
+      setTimeout(() => {
+        const info = getSelectionInfo();
+        if (info) {
+          showPopup(info);
+        }
+      }, 50);
+    }
+  };
+
+  // 查找最近的文本节点
+  const findNearestTextNode = (element: Element, x: number, y: number): Text | null => {
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          const text = node.textContent?.trim();
+          return text && text.length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+      }
+    );
+    
+    let textNode = walker.nextNode() as Text;
+    return textNode;
+  };
+
+  // 创建文本选择
+  const createTextSelection = (textNode: Text, x: number, y: number): string | null => {
+    const text = textNode.textContent;
+    if (!text) return null;
+    
+    // 创建范围选择一个单词或短语
+    const range = document.createRange();
+    const words = text.split(/\s+/);
+    
+    if (words.length === 0) return null;
+    
+    // 选择第一个有效单词，或者前几个字符
+    let startOffset = 0;
+    let endOffset = Math.min(text.length, 20); // 最多选择20个字符
+    
+    // 尝试选择一个完整的单词
+    const wordMatch = text.match(/\S+/);
+    if (wordMatch) {
+      startOffset = wordMatch.index || 0;
+      endOffset = startOffset + wordMatch[0].length;
+    }
+    
+    try {
+      range.setStart(textNode, startOffset);
+      range.setEnd(textNode, endOffset);
+      
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return selection.toString();
+      }
+    } catch (error) {
+      console.warn('创建文本选择失败:', error);
+    }
+    
+    return null;
   };
 
   // 重新初始化容器元素
