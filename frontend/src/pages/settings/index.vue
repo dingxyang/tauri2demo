@@ -27,7 +27,7 @@ import { computed } from "vue";
 import { ElInput, ElForm, ElFormItem, ElButton, ElMessage } from "element-plus";
 import { useSettingsStore } from "@/stores/settings";
 import { useRouter } from "vue-router";
-import { OPENAI_BASE_URL } from "@/constant";
+import { OPENAI_BASE_URL } from "@/utils/constant";
 import { CloseBold } from "@element-plus/icons-vue";
 import { isMobile } from "@/utils/os";
 
