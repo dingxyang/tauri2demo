@@ -51,7 +51,8 @@ import { ref, computed, nextTick } from "vue";
 import { ElInput, ElMessage, ElButton } from "element-plus";
 import { Setting } from "@element-plus/icons-vue";
 import MarkdownIt from "markdown-it";
-import { callOpenAI, callOpenAIStream, RequestType } from "@/services/translate";
+import { callOpenAI, callOpenAIStream } from "@/services/translate";
+import { RequestType } from "@/services/aiClientManager";
 import { handleError, generateErrorMarkdown } from "@/utils/errorHandler";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settings";
@@ -243,8 +244,6 @@ const aiChat = async (prompt: RequestType) => {
         const rawHtml = mdi.render(streamingText.value);
         markdownResult.value = await processHighlightedContent(rawHtml);
       },
-        apiBaseUrl: settings.value.openai.apiBaseUrl,
-        apiKey: settings.value.openai.apiKey,
         requestType: prompt,
         abortController: currentAbortController.value
       });
@@ -252,8 +251,6 @@ const aiChat = async (prompt: RequestType) => {
       // 使用普通输出
       const result = await callOpenAI({
         text: userInput.value,
-        apiBaseUrl: settings.value.openai.apiBaseUrl,
-        apiKey: settings.value.openai.apiKey,
         requestType: prompt,
         abortController: currentAbortController.value
       });
