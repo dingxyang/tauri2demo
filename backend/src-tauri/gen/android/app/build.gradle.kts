@@ -39,6 +39,9 @@ android {
             storePassword = keystoreProperties["password"] as String
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -53,13 +56,15 @@ android {
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     kotlinOptions {
         jvmTarget = "1.8"
-    }
-    buildFeatures {
-        buildConfig = true
     }
 }
 

@@ -59,10 +59,11 @@ import { useShikiHighlighter } from './hooks/useShikiHighlighter';
 import { useTextSelection } from './hooks/useTextSelection';
 import TextSelectionPopup from './components/TextSelectionPopup.vue';
 import { isMobile } from '@/utils/os';
+import { findWordInPrompt } from "@/utils/handle_word";
 
 const router = useRouter();
 const settingsStore = useSettingsStore();
-const userInput = ref('挖土机');
+const userInput = ref('abajo');
 const markdownResult = ref("abrasión 翻译成中文");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
@@ -133,7 +134,7 @@ const handleContainerClick = (event: MouseEvent) => {
 
 // 清空内容
 const clearInput = () => {
-  userInput.value = "挖土机";
+  userInput.value = "abajo";
   markdownResult.value = "";
   streamingText.value = "";
 };
@@ -194,6 +195,36 @@ const aiChat = async (prompt: RequestType) => {
     streamingText.value = "";
     return;
   }
+
+  // 西语翻译预处理，先匹配本地单词表，如果找到匹配的内容，直接显示，不调用 API
+  if (prompt === RequestType.ES_TO_CN) {
+    // 先在本地单词库中查找匹配的内容
+    const localMatch = findWordInPrompt(userInput.value);
+    if (localMatch) {
+      // 如果找到匹配的内容，直接显示，不调用 API
+      isLoading.value = true;
+      streamingText.value = "";
+      markdownResult.value = "";
+      
+      try {
+        // 模拟一个短暂的加载过程，提供更好的用户体验
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const rawHtml = mdi.render(localMatch);
+        markdownResult.value = await processHighlightedContent(rawHtml);
+        console.log("找到本地匹配结果");
+        
+        ElMessage.success("会话完成");
+        return; // 直接返回，不继续执行 API 调用
+      } catch (error) {
+        console.error('处理本地匹配结果时出错:', error);
+        // 如果处理本地结果出错，继续执行 API 调用
+      } finally {
+        isLoading.value = false;
+      }
+    }
+  }
+
 
   // 创建新的AbortController
   currentAbortController.value = new AbortController();
