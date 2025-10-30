@@ -1,0 +1,127 @@
+name: "release"
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '要编译的分支'
+        required: true
+        default: 'main'  # 默认分支
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      build_time: ${{ steps.get_build_time.outputs.build_time }} # 构建时间
+      version_time: ${{ steps.get_build_time.outputs.version_time }} # 版本时间
+    steps:
+      - name: 获取构建时间
+        id: get_build_time
+        shell: bash
+        run: |
+          BuildTime=$(TZ="Asia/Shanghai" date +"%Y-%m-%d(%H:%M:%S)")
+          VersionTime=$(TZ='Asia/Shanghai' date +%Y%m%d%H%M%S)
+          echo "build_time=$BuildTime" >> "$GITHUB_OUTPUT"
+          echo "version_time=$VersionTime" >> "$GITHUB_OUTPUT"
+
+          echo "Build Time: ${BuildTime}"
+          echo "Version Time: ${VersionTime}"
+
+  publish-tauri:
+    needs: prepare
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest" # for Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest" # for Intel based macs.
+            args: "--target x86_64-apple-darwin"
+          - platform: "windows-latest"
+            args: "--bundles nsis"
+
+    runs-on: ${{ matrix.platform }}
+    outputs:
+      app_version: ${{ steps.tauri-build.outputs.appVersion }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # 定时任务使用P4分支，手动触发使用用户选择的分支，其他情况使用默认分支
+          ref: 'main'
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: install frontend dependencies
+        run: pnpm install --no-frozen-lockfile # change this to npm, pnpm or bun depending on which one you use.
+
+      - name: Process version for scheduled builds
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            # 定时触发，从tauri.conf.json内读取，添加时间戳,生成alpha版本
+            base_version=$(jq -r '.version' backend/src-tauri/tauri.conf.json)
+            clean_version=$(echo "$base_version" | sed 's/-alpha[^-]*$//')
+            version_time="${{ needs.prepare.outputs.version_time }}"
+            FINAL_VERSION="${clean_version}-alpha.${version_time}"
+            echo "Generated version: ${FINAL_VERSION}"
+          elif [ "${{ github.event.release.tag_name }}" == "" ]; then
+            # 没有release tag，直接用__VERSION__占位符
+            FINAL_VERSION=__VERSION__
+            echo "tauri.conf.json version: ${FINAL_VERSION}"
+          else
+            # 直接从tag中读取
+            FINAL_VERSION=$(echo ${{ github.event.release.tag_name }} | sed -e 's/v//g')
+            echo "Tag version: ${FINAL_VERSION}"
+          fi
+          echo "VERSION=${FINAL_VERSION}" >> $GITHUB_ENV
+
+          if [ "${FINAL_VERSION}" != "__VERSION__" ]; then
+            # 更新 tauri.conf.json 中的版本号
+            jq ".version = \"${FINAL_VERSION}\"" backend/src-tauri/tauri.conf.json > backend/src-tauri/tmp.json
+            mv backend/src-tauri/tmp.json backend/src-tauri/tauri.conf.json
+          fi
+        shell: bash
+
+      - name: Generate release name
+        id: release_name
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "PRERELEASE=true" >> $GITHUB_ENV
+          else
+            echo "PRERELEASE=false" >> $GITHUB_ENV
+          fi
+
+          echo "RELEASE_NAME=spanish-assistant v${{ env.VERSION }}" >> $GITHUB_ENV
+          echo "TAG_NAME=v${{ env.VERSION }}" >> $GITHUB_ENV
+        shell: bash
+
+      - uses: tauri-apps/tauri-action@v0
+        id: tauri-build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ env.TAG_NAME }}
+          releaseName: ${{ env.RELEASE_NAME }}
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: ${{ env.PRERELEASE }}
+          args: ${{ matrix.args }}
