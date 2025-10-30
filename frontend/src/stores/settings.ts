@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { reactive } from "vue";
 import { getSettings, setSettings } from "@/utils/localStorage";
-import { OPENAI_BASE_URL } from "@/constant";
+import { OPENAI_BASE_URL } from "@/utils/constant";
 
 export const useSettingsStore = defineStore("settings", () => {
   const settingsState = reactive({

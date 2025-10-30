@@ -1,10 +1,3 @@
-export const OPENAI_BASE_URL = "https://api.openai.com/v1";
-export const OPENAI_MODEL_GPT = "gpt-3.5-turbo";
-export const DEEPSEEK_MODEL_V3 = "DeepSeek-V3";
-export const DEEPSEEK_MODEL_V3_250324 = "deepseek-v3-250324";
-export const OPENAI_TEMPERATURE = 0.7;
-export const OPENAI_SYSTEM_PROMPT = "";
-
 export const ES_TO_CN_PROMPT = `
 帮我把西班牙语单词 {{text}} 翻译成中文，并提供详细的翻译结果，格式要求如下：
 # [西语单词原文]
