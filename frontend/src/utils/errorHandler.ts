@@ -3,7 +3,19 @@
  */
 
 import { ElMessage } from "element-plus";
-import { ApiError } from "../services/openai";
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+
+
 
 // 错误信息映射
 const ERROR_MESSAGES = {
@@ -148,4 +160,34 @@ ${errorInfo.suggestion}
 export const getErrorMessage = (error: unknown): string => {
   const errorInfo = handleError(error, false);
   return errorInfo.message;
+};
+
+
+
+
+// 统一错误处理
+export const handleAIRequestError = (error: unknown): never => {
+  if (error instanceof ApiError) {
+    throw error;
+  }
+  
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    throw new ApiError("请求已被取消", 0, "REQUEST_ABORTED");
+  }
+  
+  if (error instanceof Error) {
+    if (error.message.includes('401')) {
+      throw new ApiError("API 密钥无效", 401, "INVALID_API_KEY");
+    } else if (error.message.includes('403')) {
+      throw new ApiError("API 访问被拒绝", 403, "ACCESS_DENIED");
+    } else if (error.message.includes('429')) {
+      throw new ApiError("请求过于频繁", 429, "RATE_LIMIT");
+    } else if (error.message.includes('500')) {
+      throw new ApiError("服务器内部错误", 500, "SERVER_ERROR");
+    } else if (error.message.includes('fetch')) {
+      throw new ApiError("网络连接失败", 0, "NETWORK_ERROR");
+    }
+  }
+  
+  throw new ApiError(`未知错误: ${error instanceof Error ? error.message : String(error)}`, 0, "UNKNOWN_ERROR");
 };
