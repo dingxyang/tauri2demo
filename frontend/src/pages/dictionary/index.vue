@@ -257,7 +257,6 @@ const aiChat = async (prompt: RequestType) => {
       const rawHtml = mdi.render(result);
       markdownResult.value = await processHighlightedContent(rawHtml);
     }
-
     ElMessage.success("会话完成");
   } catch (error) {
     // 使用统一的错误处理

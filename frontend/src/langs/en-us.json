@@ -4,6 +4,13 @@
         "title": "Settings",
         "apiBaseUrl": "API Base URL",
         "apiKey": "API Key",
-        "save": "Save"
+        "apiKeyPlaceholder": "Please enter API Key",
+        "save": "Save",
+        "test": "Test",
+        "testSuccess": "Test Success",
+        "testFailed": "Test Failed",
+        "testFailedMessage": "API Base URL is not accessible, please check your network connection or proxy settings",
+        "saveSuccess": "Settings saved!",
+        "supportServices": "Currently supports Volcano Engine and OpenAI services"
     }
 }
