@@ -4,6 +4,13 @@
         "title": "系统设置",
         "apiBaseUrl": "API Base URL",
         "apiKey": "API Key",
-        "save": "保存"
+        "apiKeyPlaceholder": "请输入 API Key",
+        "save": "保存",
+        "test": "测试",
+        "testSuccess": "测试成功",
+        "testFailed": "测试失败",
+        "testFailedMessage": "API Base URL 无法访问，请检查网络连接或代理设置",
+        "saveSuccess": "设置已保存！",
+        "supportServices": "目前支持火山引擎和 OpenAI 服务"
     }
 }

@@ -1,13 +1,13 @@
 import { defineStore } from "pinia";
 import { reactive } from "vue";
 import { getSettings, setSettings } from "@/utils/localStorage";
-import { OPENAI_BASE_URL } from "@/utils/constant";
+import { VOLCENGINE_BASE_URL } from "@/utils/constant";
 import { aiClientManager } from "@/services/aiClientManager";
 
 export const useSettingsStore = defineStore("settings", () => {
   const settingsState = reactive({
     openai: {
-      apiBaseUrl: OPENAI_BASE_URL,
+      apiBaseUrl: VOLCENGINE_BASE_URL,
       apiKey: "",
     },
     isDark: false,

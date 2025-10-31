@@ -212,6 +212,9 @@ export class AIClientManager {
         messages,
         temperature: OPENAI_TEMPERATURE,
         abortSignal: abortController?.signal,
+        onError: (error) => {
+           handleAIRequestError(error?.error || error);
+        },
       });
 
       for await (const textPart of result.textStream) {
