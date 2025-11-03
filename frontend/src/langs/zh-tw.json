@@ -2,9 +2,9 @@
     "name": "繁體中文",
     "settings": {
         "title": "系統設置",
-        "apiBaseUrl": "自定義 API Base URL",
-        "apiKey": "API Key",
-        "apiKeyPlaceholder": "請輸入 API Key",
+        "apiBaseUrl": "API 地址",
+        "apiKey": "API 密鑰",
+        "apiKeyPlaceholder": "請輸入 API 密鑰",
         "save": "保存",
         "test": "測試",
         "testSuccess": "測試成功",
