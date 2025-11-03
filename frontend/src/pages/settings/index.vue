@@ -101,7 +101,6 @@ const goToDictionary = () => {
 
 const saveSettings = async () => {
   await settingsFormRef.value.validate((valid, fields) => {
-    debugger;
     if (valid) {
       settingsStore.saveSettings({
         openai: {
