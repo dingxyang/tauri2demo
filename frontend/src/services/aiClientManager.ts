@@ -40,6 +40,7 @@ export interface AIClientConfig {
   apiBaseUrl: string;
   apiKey: string;
   providerType?: ProviderType;
+  selectedModel: string;
 }
 
 /**
@@ -125,15 +126,11 @@ export class AIClientManager {
       throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
     }
 
-    const { apiBaseUrl } = this.config;
-    
-    if (apiBaseUrl.includes('ark.cn-beijing.volces.com')) {
-      return SYSTEM_MODELS[SystemProvider.doubao][0].id;
-    } else if (apiBaseUrl.includes('api.openai.com')) {
-      return SYSTEM_MODELS[SystemProvider.openai][0].id;
-    } else {
-      return SYSTEM_MODELS[SystemProvider.defaultprovider][0].id;
+    const { selectedModel } = this.config;
+    if (!selectedModel) {
+      throw new ApiError("模型未选择", 0, "MODEL_NOT_SELECTED");
     }
+    return selectedModel;
   }
 
   /**
