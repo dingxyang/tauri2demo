@@ -1,58 +1,91 @@
 import { defineStore } from "pinia";
 import { reactive } from "vue";
-import { getSettings, setSettings } from "@/utils/localStorage";
-import { VOLCENGINE_BASE_URL } from "@/utils/constant";
-import { aiClientManager } from "@/services/aiClientManager";
+import { getCurrentModelInfo, getSettings, setCurrentModelInfo, setSettings } from "@/utils/localStorage";
+import { 
+  createProviderConfig, 
+} from "@/utils/constant/providers";
 
 export const useSettingsStore = defineStore("settings", () => {
   const settingsState = reactive({
-    openai: {
-      apiBaseUrl: VOLCENGINE_BASE_URL,
-      apiKey: "",
-    },
+    // 使用新的provider配置结构
+    providers: createProviderConfig(),
     isDark: false,
+    defaultModelInfo: '' // 格式: "providerId/modelId"
   });
 
 
   const loadSettings = async () => {
     // 先从本地缓存读取
+    const currentModelInfo = getCurrentModelInfo();
+    if (currentModelInfo) {
+      // 现在存储的是简化格式 "providerId/modelId"，直接使用
+      settingsState.defaultModelInfo = currentModelInfo;
+    }
     let settings = getSettings();
     if (settings) {
       settings = JSON.parse(settings);
-      settingsState.openai.apiBaseUrl = settings.openai.apiBaseUrl;
-      settingsState.openai.apiKey = settings.openai.apiKey;
       
-      // 如果有完整配置，初始化 AI 客户端管理器
-      if (settingsState.openai.apiBaseUrl && settingsState.openai.apiKey) {
-        aiClientManager.initialize({
-          apiBaseUrl: settingsState.openai.apiBaseUrl,
-          apiKey: settingsState.openai.apiKey
+      // 加载新的多提供商配置
+      if (settings.providers) {
+        Object.keys(settings.providers).forEach(providerId => {
+          if (settingsState.providers[providerId]) {
+            // 合并保存的配置到默认配置
+            const savedConfig = settings.providers[providerId];
+            const currentProvider = settingsState.providers[providerId];
+            
+            // 更新provider配置，保持默认结构
+            currentProvider.enabled = savedConfig.enabled ?? currentProvider.enabled;
+            if (savedConfig.options) {
+              currentProvider.options = {
+                ...currentProvider.options,
+                ...savedConfig.options
+              };
+            }
+            // 兼容旧的配置格式
+            if (savedConfig.apiBaseUrl) {
+              currentProvider.options = currentProvider.options || {};
+              currentProvider.options.baseURL = savedConfig.apiBaseUrl;
+            }
+            if (savedConfig.apiKey) {
+              currentProvider.options = currentProvider.options || {};
+              currentProvider.options.apiKey = savedConfig.apiKey;
+            }
+            if (savedConfig.selectedModel) {
+              currentProvider.defaultModel = savedConfig.selectedModel;
+            }
+            if (savedConfig.name && providerId === "openai-compatible") {
+              currentProvider.name = savedConfig.name;
+              currentProvider.options = currentProvider.options || {};
+            }
+          }
         });
       }
     }
+  
   };
 
   const saveSettings = async (data) => {
-    if (data.apiBaseUrl) {
-      settingsState.openai.apiBaseUrl = data.apiBaseUrl;
-    }
-    if (data.apiKey) {
-      settingsState.openai.apiKey = data.apiKey;
-    }
-    setSettings(settingsState);
-    
-    // 重新初始化 AI 客户端管理器
-    if (settingsState.openai.apiBaseUrl && settingsState.openai.apiKey) {
-      aiClientManager.initialize({
-        apiBaseUrl: settingsState.openai.apiBaseUrl,
-        apiKey: settingsState.openai.apiKey
+    // 保存新的多提供商配置
+    if (data.providers) {
+      Object.keys(data.providers).forEach(provider => {
+        if (settingsState.providers[provider]) {
+          Object.assign(settingsState.providers[provider], data.providers[provider]);
+        }
       });
     }
+    
+    setSettings(settingsState);
+    
+  };
+
+  const saveCurrentModelInfo = (modelInfo: any) => {
+    setCurrentModelInfo(modelInfo);
   };
 
   return {
     settingsState,
     loadSettings,
-    saveSettings
+    saveSettings,
+    saveCurrentModelInfo
   };
 });
