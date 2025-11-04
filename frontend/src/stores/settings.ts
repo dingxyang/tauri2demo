@@ -1,12 +1,8 @@
 import { defineStore } from "pinia";
 import { reactive } from "vue";
 import { getCurrentModelInfo, getSettings, setCurrentModelInfo, setSettings } from "@/utils/localStorage";
-import { aiClientManager } from "@/services/aiClientManager";
 import { 
   createProviderConfig, 
-  getFirstEnabledProvider,
-  getProviderBaseURL,
-  getProviderApiKey,
 } from "@/utils/constant/providers";
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -14,11 +10,7 @@ export const useSettingsStore = defineStore("settings", () => {
     // 使用新的provider配置结构
     providers: createProviderConfig(),
     isDark: false,
-    defaultModelInfo: {
-      providerId: '',
-      modelId: '',
-      modelName: ''
-    }
+    defaultModelInfo: '' // 格式: "providerId/modelId"
   });
 
 
@@ -26,7 +18,8 @@ export const useSettingsStore = defineStore("settings", () => {
     // 先从本地缓存读取
     const currentModelInfo = getCurrentModelInfo();
     if (currentModelInfo) {
-      settingsState.defaultModelInfo = JSON.parse(currentModelInfo);
+      // 现在存储的是简化格式 "providerId/modelId"，直接使用
+      settingsState.defaultModelInfo = currentModelInfo;
     }
     let settings = getSettings();
     if (settings) {
@@ -67,26 +60,6 @@ export const useSettingsStore = defineStore("settings", () => {
           }
         });
       }
-      
-      // 初始化 AI 客户端管理器 - 使用第一个启用的提供商
-      let firstEnabledProvider = getFirstEnabledProvider(settingsState.providers);
-      if (currentModelInfo) {
-        firstEnabledProvider = settingsState.providers[settingsState.defaultModelInfo.providerId];
-      }
-      
-      if (firstEnabledProvider) {
-        const baseURL = getProviderBaseURL(firstEnabledProvider);
-        const apiKey = getProviderApiKey(firstEnabledProvider);
-        
-        if (baseURL && apiKey) {
-          aiClientManager.initialize({
-            apiBaseUrl: baseURL,
-            apiKey: apiKey,
-            providerId: firstEnabledProvider.id,
-            modelId: firstEnabledProvider.defaultModel
-          });
-        }
-      } 
     }
   
   };

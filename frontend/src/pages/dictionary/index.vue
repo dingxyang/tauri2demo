@@ -79,7 +79,7 @@ const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
 const currentAbortController = ref<AbortController | null>(null); // 当前请求的终止控制器
-const selectedModel = ref(""); // 当前选择的模型
+const selectedModel = ref(""); // 当前选择的模型（用于 ModelSelector 的 v-model）
 
 // 使用文本选择功能
 const textSelection = useTextSelection({
@@ -138,23 +138,24 @@ const goToSettings = () => {
   router.push({ path: "/settings" });
 };
 
+
 // 处理模型切换
 const handleModelChange = (modelInfo: { providerId: string; modelId: string; providerConfig: any }) => {
   try {
-    // 使用新的AIClientManager接口切换模型
-    aiClientManager.switchModel(
-      modelInfo.modelId, 
-      modelInfo.providerId,
-      {
-        apiBaseUrl: modelInfo.providerConfig.apiBaseUrl,
-        apiKey: modelInfo.providerConfig.apiKey
-      }
-    );
+    // 验证提供商是否可用
+    if (!aiClientManager.isProviderAvailable(modelInfo.providerId)) {
+      throw new Error(`提供商 ${modelInfo.providerId} 不可用或未启用`);
+    }
     
-    console.log(`已切换到模型: ${modelInfo.modelId} (${modelInfo.providerId})`);
+    // 更新当前选中的模型信息，格式: "providerId/modelId"
+    const modelInfoString = `${modelInfo.providerId}/${modelInfo.modelId}`;
+    settingsStore.settingsState.defaultModelInfo = modelInfoString;
+    settingsStore.saveCurrentModelInfo(modelInfoString);
+    
+    console.log(`已选择模型: ${modelInfo.modelId} (${modelInfo.providerId})`);
   } catch (error) {
-    console.error('模型切换失败:', error);
-    ElMessage.error('模型切换失败，请检查配置');
+    console.error('模型选择失败:', error);
+    ElMessage.error('模型选择失败，请检查配置');
   }
 };
 
@@ -268,6 +269,7 @@ const aiChat = async (prompt: RequestType) => {
       // 使用流式输出
       await callOpenAIStream({
         text: userInput.value,
+        currentModelInfo: settingsStore.settingsState.defaultModelInfo,
         onData: async (chunk: string) => {
         // 每收到一个数据块就更新显示
         streamingText.value += chunk;
@@ -281,6 +283,7 @@ const aiChat = async (prompt: RequestType) => {
       // 使用普通输出
       const result = await callOpenAI({
         text: userInput.value,
+        currentModelInfo: settingsStore.settingsState.defaultModelInfo,
         requestType: prompt,
         abortController: currentAbortController.value
       });

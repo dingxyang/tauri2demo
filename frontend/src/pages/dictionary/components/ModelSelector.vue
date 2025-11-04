@@ -65,9 +65,10 @@ const handleModelSelect = (providerId: string, model: any, providerConfig: any) 
     modelName: model.name
   };
   
-  // 更新 settings store 中的默认模型信息
-  settingsStore.settingsState.defaultModelInfo = modelInfo;
-  settingsStore.saveCurrentModelInfo(modelInfo);
+  // 更新 settings store 中的默认模型信息（保存简化格式）
+  const simpleModelInfo = `${modelInfo.providerId}/${modelInfo.modelId}`;
+  settingsStore.settingsState.defaultModelInfo = simpleModelInfo;
+  settingsStore.saveCurrentModelInfo(simpleModelInfo);
 };
 
 // 监听 selectedModel 变化（用户选择模型时触发），更新 defaultModelInfo
@@ -118,7 +119,12 @@ const enabledProviders = computed(() => {
 const currentModelName = computed(() => {
   if (!selectedModel.value) {
     // 如果没有选中模型，显示默认模型名称
-    return settingsStore.settingsState.defaultModelInfo.modelId || '';
+    const defaultModelInfo = settingsStore.settingsState.defaultModelInfo;
+    if (defaultModelInfo) {
+      const [, modelId] = defaultModelInfo.split('/');
+      return modelId || '';
+    }
+    return '';
   }
   
   const [providerId, modelId] = selectedModel.value.split(':');
@@ -154,14 +160,15 @@ const getDefaultModel = () => {
 // 检查是否有用户已设置的模型
 const hasUserSelectedModel = () => {
   const currentModelInfo = settingsStore.settingsState.defaultModelInfo;
-  return currentModelInfo && currentModelInfo.providerId && currentModelInfo.modelId;
+  return currentModelInfo && currentModelInfo.includes('/');
 };
 
 // 获取用户已设置的模型值
 const getUserSelectedModel = () => {
   const currentModelInfo = settingsStore.settingsState.defaultModelInfo;
   if (hasUserSelectedModel()) {
-    return `${currentModelInfo.providerId}:${currentModelInfo.modelId}`;
+    const [providerId, modelId] = currentModelInfo.split('/');
+    return `${providerId}:${modelId}`;
   }
   return '';
 };
@@ -182,19 +189,6 @@ const handleModelChange = (value: string) => {
   const provider = enabledProviders.value.find(p => p.key === providerId);
 
   if (provider) {
-    const model = provider.models.find(m => m.id === modelId);
-    
-    // 更新当前选中的模型信息
-    if (model) {
-      const modelInfo = {
-        providerId,
-        modelId,
-        modelName: model.name
-      };
-      settingsStore.settingsState.defaultModelInfo = modelInfo;
-      settingsStore.saveCurrentModelInfo(modelInfo);
-    }
-
     emit('update:modelValue', value);
     emit('modelChange', {
       providerId,
