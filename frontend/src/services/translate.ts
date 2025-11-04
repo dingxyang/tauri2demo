@@ -26,7 +26,8 @@ export const callOpenAIStream = async (params: StreamRequestParams): Promise<voi
   console.log("translate callOpenAIStream", {
     requestType: params.requestType,
     textLength: params.text.length,
-    providerType: aiClientManager.getProviderType()
+    providerId: aiClientManager.getProviderId(),
+    modelId: aiClientManager.getCurrentModel()
   });
 
   return aiClientManager.callStream(params);
@@ -43,7 +44,8 @@ export const callOpenAI = async (params: BaseRequestParams): Promise<string> => 
   console.log("translate callOpenAI", {
     requestType: params.requestType,
     textLength: params.text.length,
-    providerType: aiClientManager.getProviderType()
+    providerId: aiClientManager.getProviderId(),
+    modelId: aiClientManager.getCurrentModel()
   });
 
   return aiClientManager.call(params);

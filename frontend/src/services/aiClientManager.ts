@@ -4,15 +4,18 @@
 
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createDeepSeek } from '@ai-sdk/deepseek';
 import { streamText, generateText } from 'ai';
 import { OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT } from "@/utils/constant";
-import { SYSTEM_MODELS, SystemProvider } from '@/utils/constant/model';
 import { ApiError, handleAIRequestError } from '@/utils/errorHandler';
+import { Provider, providers } from '@/utils/constant/providers';
 
-// Provider 类型枚举
+// Provider 类型枚举 - 与providers.ts保持一致
 export enum ProviderType {
-  OPENAI_OFFICIAL = 'openai_official',    // OpenAI 官方 API
-  OPENAI_COMPATIBLE = 'openai_compatible' // OpenAI 兼容 API
+  OPENAI = 'openai',                       // OpenAI 官方 API
+  OPENAI_COMPATIBLE = 'openai-compatible', // OpenAI 兼容 API
+  DEEPSEEK = 'deepseek',                   // DeepSeek API
+  DOUBAO = 'doubao'                        // 火山引擎（豆包）API
 }
 
 // 请求类型枚举
@@ -37,10 +40,11 @@ export interface StreamRequestParams extends BaseRequestParams {
 
 // AI 客户端配置接口
 export interface AIClientConfig {
-  apiBaseUrl: string;
-  apiKey: string;
-  providerType?: ProviderType;
-  selectedModel: string;
+  providerId: string;      // 提供商ID
+  modelId: string;         // 模型ID
+  apiBaseUrl?: string;     // API基础URL（可选，从provider配置获取）
+  apiKey?: string;         // API密钥（可选，从provider配置获取）
+  providerConfig?: Provider; // 完整的提供商配置
 }
 
 /**
@@ -51,7 +55,7 @@ export class AIClientManager {
   private static instance: AIClientManager | null = null;
   private client: any = null;
   private config: AIClientConfig | null = null;
-  private providerType: ProviderType = ProviderType.OPENAI_COMPATIBLE;
+  private currentProvider: Provider | null = null;
 
   private constructor() {}
 
@@ -71,22 +75,34 @@ export class AIClientManager {
    */
   public initialize(config: AIClientConfig): void {
     this.config = config;
-    this.providerType = this.detectProviderType(config.apiBaseUrl);
+    
+    // 获取提供商配置
+    this.currentProvider = this.getProviderConfig(config.providerId);
+    if (!this.currentProvider) {
+      console.error(`未找到提供商配置: ${config.providerId}`);
+      return
+    }
+    
+    // 如果配置中没有提供API信息，使用提供商默认配置
+    if (!config.apiBaseUrl) {
+      config.apiBaseUrl = this.currentProvider.options?.baseURL || this.currentProvider.api;
+    }
+    if (!config.apiKey) {
+      config.apiKey = this.currentProvider.options?.apiKey || '';
+    }
+    
     this.client = this.createClient();
     
-    console.log(`AI客户端已初始化，Provider类型: ${this.providerType}`);
+    console.log(`AI客户端已初始化，Provider: ${this.currentProvider.name}`);
   }
 
   /**
-   * 检测 Provider 类型
-   * @param apiBaseUrl API 基础URL
-   * @returns Provider 类型
+   * 获取提供商配置
+   * @param providerId 提供商ID
+   * @returns 提供商配置
    */
-  private detectProviderType(apiBaseUrl: string): ProviderType {
-    if (apiBaseUrl.includes('api.openai.com')) {
-      return ProviderType.OPENAI_OFFICIAL;
-    }
-    return ProviderType.OPENAI_COMPATIBLE;
+  private getProviderConfig(providerId: string): Provider | null {
+    return providers[providerId] || null;
   }
 
   /**
@@ -94,27 +110,42 @@ export class AIClientManager {
    * @returns 客户端实例
    */
   private createClient() {
-    if (!this.config) {
+    if (!this.config || !this.currentProvider) {
       throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
     }
 
     const { apiBaseUrl, apiKey } = this.config;
-
-    switch (this.providerType) {
-      case ProviderType.OPENAI_OFFICIAL:
-        return createOpenAI({
-          apiKey: apiKey,
-          baseURL: apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`,
-        });
-
-      case ProviderType.OPENAI_COMPATIBLE:
-      default:
-        return createOpenAICompatible({
-          name: 'openai-compatible',
-          baseURL: apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`,
-          apiKey: apiKey,
-        });
+    
+    if (!apiKey) {
+      throw new ApiError("API密钥未配置", 0, "API_KEY_NOT_CONFIGURED");
     }
+
+    // 使用提供商配置中的creator函数创建客户端
+    if (this.currentProvider.creator) {
+      const baseURL = apiBaseUrl?.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
+      
+      // 根据不同的提供商类型传递不同的参数
+      switch (this.currentProvider.id) {
+        case 'openai-compatible' :
+          return this.currentProvider.creator({
+            name: this.currentProvider.id,
+            apiKey: apiKey,
+            baseURL: baseURL,
+          });
+        default:
+          return this.currentProvider.creator({
+            baseURL: baseURL,
+            apiKey: apiKey,
+          });
+      }
+    }
+    
+    // 如果没有creator函数，回退到默认的OpenAI兼容模式
+    return createOpenAICompatible({
+      name: this.currentProvider.id,
+      baseURL: apiBaseUrl?.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`,
+      apiKey: apiKey,
+    });
   }
 
   /**
@@ -126,11 +157,11 @@ export class AIClientManager {
       throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
     }
 
-    const { selectedModel } = this.config;
-    if (!selectedModel) {
+    const { modelId } = this.config;
+    if (!modelId) {
       throw new ApiError("模型未选择", 0, "MODEL_NOT_SELECTED");
     }
-    return selectedModel;
+    return modelId;
   }
 
   /**
@@ -194,11 +225,12 @@ export class AIClientManager {
     
     const { text, onData, requestType = RequestType.CHAT, abortController } = params;
 
-    console.log("AIClientManager callStream", { 
-      providerType: this.providerType, 
-      requestType,
-      textLength: text.length 
-    });
+      console.log("AIClientManager callStream", { 
+        providerId: this.currentProvider?.id, 
+        modelId: this.config?.modelId,
+        requestType,
+        textLength: text.length 
+      });
 
     try {
       const model = this.getModelName();
@@ -211,6 +243,9 @@ export class AIClientManager {
         abortSignal: abortController?.signal,
         onError: (error) => {
            handleAIRequestError(error?.error || error);
+        },
+        onFinish({ text, finishReason, usage, response, steps, totalUsage }) {
+          console.log("onFinish", { text, finishReason, usage, response, steps, totalUsage });
         },
       });
 
@@ -261,11 +296,19 @@ export class AIClientManager {
   }
 
   /**
-   * 获取当前 Provider 类型
-   * @returns Provider 类型
+   * 获取当前提供商信息
+   * @returns 提供商配置
    */
-  public getProviderType(): ProviderType {
-    return this.providerType;
+  public getCurrentProvider(): Provider | null {
+    return this.currentProvider;
+  }
+
+  /**
+   * 获取当前提供商ID
+   * @returns 提供商ID
+   */
+  public getProviderId(): string | null {
+    return this.currentProvider?.id || null;
   }
 
   /**
@@ -277,12 +320,55 @@ export class AIClientManager {
   }
 
   /**
+   * 动态切换模型
+   * @param modelId 新的模型ID
+   * @param providerId 提供商ID（可选）
+   * @param providerConfig 提供商配置（可选，如果不提供则使用当前配置）
+   */
+  public switchModel(modelId: string, providerId?: string, providerConfig?: { apiBaseUrl: string; apiKey: string }): void {
+    if (!this.config) {
+      throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
+    }
+
+    // 如果提供了新的提供商ID，需要重新初始化
+    if (providerId && providerId !== this.config.providerId) {
+      const newConfig: AIClientConfig = {
+        providerId,
+        modelId,
+        apiBaseUrl: providerConfig?.apiBaseUrl,
+        apiKey: providerConfig?.apiKey
+      };
+      this.initialize(newConfig);
+    } else {
+      // 只是切换模型，不改变提供商
+      this.config.modelId = modelId;
+      
+      // 如果提供了新的配置，更新配置
+      if (providerConfig) {
+        this.config.apiBaseUrl = providerConfig.apiBaseUrl;
+        this.config.apiKey = providerConfig.apiKey;
+        this.client = this.createClient();
+      }
+    }
+    
+    console.log(`模型已切换到: ${modelId}, Provider: ${this.currentProvider?.name}`);
+  }
+
+  /**
+   * 获取当前使用的模型ID
+   * @returns 当前模型ID
+   */
+  public getCurrentModel(): string | null {
+    return this.config?.modelId || null;
+  }
+
+  /**
    * 重置客户端（用于测试或重新配置）
    */
   public reset(): void {
     this.client = null;
     this.config = null;
-    this.providerType = ProviderType.OPENAI_COMPATIBLE;
+    this.currentProvider = null;
   }
 }
 
