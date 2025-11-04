@@ -22,3 +22,12 @@ export const getSettings = () => {
 export const setSettings = (settings: any) => {
   setLocalStorageItem(SETTINGS_KEY, settings);
 };
+
+
+export const getCurrentModelInfo = () => {
+  return getLocalStorageItem('defaultModelInfo');
+};
+
+export const setCurrentModelInfo = (modelInfo: any) => {
+  setLocalStorageItem('defaultModelInfo', modelInfo);
+};
