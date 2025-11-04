@@ -3,7 +3,14 @@
   <el-container class="dictionary-container" @click="handleContainerClick">
     <el-header class="dictionary-header flex-header">
       <h2>翻译助手</h2>
-      <el-icon @click="goToSettings"><Setting /></el-icon>
+      <div class="header-controls">
+        <ModelSelector 
+          v-model="selectedModel"
+          @model-change="handleModelChange"
+          class="model-selector-header"
+        />
+        <el-icon @click="goToSettings"><Setting /></el-icon>
+      </div>
     </el-header>
     <!-- 输入框 -->
     <el-main class="dictionary-main">
@@ -59,8 +66,10 @@ import { useSettingsStore } from "@/stores/settings";
 import { useShikiHighlighter } from './hooks/useShikiHighlighter';
 import { useTextSelection } from './hooks/useTextSelection';
 import TextSelectionPopup from './components/TextSelectionPopup.vue';
+import ModelSelector from './components/ModelSelector.vue';
 import { isMobile } from '@/utils/os';
 import { findWordInPrompt } from "@/utils/handle_word";
+import { aiClientManager } from '@/services/aiClientManager';
 
 const router = useRouter();
 const settingsStore = useSettingsStore();
@@ -70,6 +79,7 @@ const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
 const currentAbortController = ref<AbortController | null>(null); // 当前请求的终止控制器
+const selectedModel = ref(""); // 当前选择的模型
 
 // 使用文本选择功能
 const textSelection = useTextSelection({
@@ -126,6 +136,26 @@ const processHighlightedContent = async (html: string) => {
 // 跳转至设置页面
 const goToSettings = () => {
   router.push({ path: "/settings" });
+};
+
+// 处理模型切换
+const handleModelChange = (modelInfo: { providerId: string; modelId: string; providerConfig: any }) => {
+  try {
+    // 使用新的AIClientManager接口切换模型
+    aiClientManager.switchModel(
+      modelInfo.modelId, 
+      modelInfo.providerId,
+      {
+        apiBaseUrl: modelInfo.providerConfig.apiBaseUrl,
+        apiKey: modelInfo.providerConfig.apiKey
+      }
+    );
+    
+    console.log(`已切换到模型: ${modelInfo.modelId} (${modelInfo.providerId})`);
+  } catch (error) {
+    console.error('模型切换失败:', error);
+    ElMessage.error('模型切换失败，请检查配置');
+  }
 };
 
 // 处理容器点击事件
@@ -278,6 +308,23 @@ const aiChat = async (prompt: RequestType) => {
 </script>
 
 <style scoped>
+.dictionary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.model-selector-header {
+  margin-right: 8px;
+}
+
 .button-container {
   margin-top: 10px;
   margin-bottom: 10px;
@@ -364,5 +411,25 @@ const aiChat = async (prompt: RequestType) => {
   
   /* 防止长按时出现系统选择框 */
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .dictionary-header {
+    padding: 0 10px;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+  
+  .header-controls {
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .model-selector-header {
+    flex: 1;
+    margin-right: 0;
+  }
 }
 </style>
