@@ -1,14 +1,12 @@
 /**
- * AI 客户端管理器 - 支持多种 Provider 和单例模式
+ * AI 客户端管理器 - 支持多种 Provider 和调用时初始化
  */
 
-import { createOpenAI } from '@ai-sdk/openai';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { createDeepSeek } from '@ai-sdk/deepseek';
 import { streamText, generateText } from 'ai';
 import { OPENAI_TEMPERATURE, ES_TO_CN_PROMPT, CN_TO_ES_PROMPT } from "@/utils/constant";
 import { ApiError, handleAIRequestError } from '@/utils/errorHandler';
 import { Provider, providers } from '@/utils/constant/providers';
+import { getSettings } from '@/utils/localStorage';
 
 // Provider 类型枚举 - 与providers.ts保持一致
 export enum ProviderType {
@@ -28,6 +26,7 @@ export enum RequestType {
 // 基础请求参数接口
 export interface BaseRequestParams {
   text: string;
+  currentModelInfo: string; // 格式: "providerId/modelId"
   requestType?: RequestType;
   stream?: boolean;
   abortController?: AbortController;
@@ -49,13 +48,11 @@ export interface AIClientConfig {
 
 /**
  * AI 客户端管理器类
- * 负责管理不同 Provider 的客户端实例，支持单例模式
+ * 负责管理不同 Provider 的客户端实例，支持调用时初始化
  */
 export class AIClientManager {
   private static instance: AIClientManager | null = null;
-  private client: any = null;
-  private config: AIClientConfig | null = null;
-  private currentProvider: Provider | null = null;
+  private clientCache: Map<string, any> = new Map(); // 缓存已创建的客户端
 
   private constructor() {}
 
@@ -70,30 +67,41 @@ export class AIClientManager {
   }
 
   /**
-   * 初始化客户端
+   * 获取或创建客户端实例（调用时初始化）
    * @param config 客户端配置
+   * @returns 客户端实例
    */
-  public initialize(config: AIClientConfig): void {
-    this.config = config;
+  private getOrCreateClient(config: AIClientConfig): any {
+    // 生成缓存键
+    const cacheKey = `${config.providerId}-${config.apiBaseUrl || ''}-${config.apiKey || ''}`;
+    
+    // 检查缓存
+    if (this.clientCache.has(cacheKey)) {
+      return this.clientCache.get(cacheKey);
+    }
     
     // 获取提供商配置
-    this.currentProvider = this.getProviderConfig(config.providerId);
-    if (!this.currentProvider) {
-      console.error(`未找到提供商配置: ${config.providerId}`);
-      return
+    const provider = this.getProviderConfig(config.providerId);
+    if (!provider) {
+      throw new ApiError(`未找到提供商配置: ${config.providerId}`, 0, "PROVIDER_NOT_FOUND");
     }
     
     // 如果配置中没有提供API信息，使用提供商默认配置
-    if (!config.apiBaseUrl) {
-      config.apiBaseUrl = this.currentProvider.options?.baseURL || this.currentProvider.api;
-    }
-    if (!config.apiKey) {
-      config.apiKey = this.currentProvider.options?.apiKey || '';
+    const apiBaseUrl = config.apiBaseUrl || provider.options?.baseURL || provider.api;
+    const apiKey = config.apiKey || provider.options?.apiKey || '';
+    
+    if (!apiKey) {
+      throw new ApiError("API密钥未配置", 0, "API_KEY_NOT_CONFIGURED");
     }
     
-    this.client = this.createClient();
+    // 创建客户端
+    const client = this.createClient(provider, apiBaseUrl, apiKey);
     
-    console.log(`AI客户端已初始化，Provider: ${this.currentProvider.name}`);
+    // 缓存客户端
+    this.clientCache.set(cacheKey, client);
+    
+    console.log(`AI客户端已创建，Provider: ${provider.name}`);
+    return client;
   }
 
   /**
@@ -102,62 +110,67 @@ export class AIClientManager {
    * @returns 提供商配置
    */
   private getProviderConfig(providerId: string): Provider | null {
+    // 直接从 localstorage 里面获取
+    const settings = getSettings();
+    let provider = providers[providerId];
+    if (!provider) {
+      console.error(`不支持提供商: ${providerId}`);
+      return null;
+    }
+    if (settings) {
+      const settingsData = JSON.parse(settings);
+      if (settingsData.providers && settingsData.providers[providerId]) {
+        return {
+          ...provider,
+          enabled: settingsData.providers[providerId].enabled,
+          defaultModel: settingsData.providers[providerId].defaultModel,
+          models: settingsData.providers[providerId].models,
+          options: {
+            baseURL: settingsData.providers[providerId].options.baseURL,
+            apiKey: settingsData.providers[providerId].options.apiKey,
+          },
+        }
+      }
+    }
     return providers[providerId] || null;
   }
 
   /**
    * 创建客户端实例
+   * @param provider 提供商配置
+   * @param apiBaseUrl API基础URL
+   * @param apiKey API密钥
    * @returns 客户端实例
    */
-  private createClient() {
-    if (!this.config || !this.currentProvider) {
-      throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
+  private createClient(provider: Provider, apiBaseUrl: string, apiKey: string): any {
+    if (!provider.creator) {
+      throw new ApiError(`提供商 ${provider.id} 没有配置 creator 函数`, 0, "CREATOR_NOT_CONFIGURED");
     }
 
-    const { apiBaseUrl, apiKey } = this.config;
+    const baseURL = apiBaseUrl?.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
     
-    if (!apiKey) {
-      throw new ApiError("API密钥未配置", 0, "API_KEY_NOT_CONFIGURED");
+    // 根据不同的提供商类型传递不同的参数
+    switch (provider.id) {
+      case 'openai-compatible':
+        return provider.creator({
+          name: provider.id,
+          apiKey: apiKey,
+          baseURL: baseURL,
+        });
+      default:
+        return provider.creator({
+          baseURL: baseURL,
+          apiKey: apiKey,
+        });
     }
-
-    // 使用提供商配置中的creator函数创建客户端
-    if (this.currentProvider.creator) {
-      const baseURL = apiBaseUrl?.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
-      
-      // 根据不同的提供商类型传递不同的参数
-      switch (this.currentProvider.id) {
-        case 'openai-compatible' :
-          return this.currentProvider.creator({
-            name: this.currentProvider.id,
-            apiKey: apiKey,
-            baseURL: baseURL,
-          });
-        default:
-          return this.currentProvider.creator({
-            baseURL: baseURL,
-            apiKey: apiKey,
-          });
-      }
-    }
-    
-    // 如果没有creator函数，回退到默认的OpenAI兼容模式
-    return createOpenAICompatible({
-      name: this.currentProvider.id,
-      baseURL: apiBaseUrl?.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`,
-      apiKey: apiKey,
-    });
   }
 
   /**
-   * 获取模型名称
+   * 验证模型ID
+   * @param modelId 模型ID
    * @returns 模型名称
    */
-  private getModelName(): string {
-    if (!this.config) {
-      throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
-    }
-
-    const { modelId } = this.config;
+  private validateModelId(modelId: string): string {
     if (!modelId) {
       throw new ApiError("模型未选择", 0, "MODEL_NOT_SELECTED");
     }
@@ -208,11 +221,47 @@ export class AIClientManager {
   }
 
   /**
-   * 验证客户端是否已初始化
+   * 解析当前模型信息并获取配置
+   * @param currentModelInfo 格式: "providerId/modelId"
+   * @returns 解析后的配置信息
    */
-  private validateClient(): void {
-    if (!this.client || !this.config) {
-      throw new ApiError("AI客户端未初始化，请先配置API设置", 0, "CLIENT_NOT_INITIALIZED");
+  private parseModelInfo(currentModelInfo: string) {
+    if (!currentModelInfo) {
+      throw new ApiError('请先选择一个模型', 0, "MODEL_NOT_SELECTED");
+    }
+    
+    const [providerId, modelId] = currentModelInfo.split('/');
+    if (!providerId || !modelId) {
+      throw new ApiError('模型信息格式错误', 0, "INVALID_MODEL_FORMAT");
+    }
+    
+    // 从本地缓存获取设置
+    const settings = getSettings();
+    if (!settings) {
+      throw new ApiError('未找到设置信息，请先配置', 0, "SETTINGS_NOT_FOUND");
+    }
+    
+    const settingsData = JSON.parse(settings);
+    const providerConfig = settingsData.providers?.[providerId];
+    if (!providerConfig) {
+      throw new ApiError(`未找到提供商 ${providerId} 的配置`, 0, "PROVIDER_CONFIG_NOT_FOUND");
+    }
+    
+    return {
+      providerId,
+      modelId,
+      apiBaseUrl: providerConfig.options?.baseURL,
+      apiKey: providerConfig.options?.apiKey
+    };
+  }
+
+  /**
+   * 验证请求参数
+   * @param params 请求参数
+   */
+  private validateRequestParams(params: BaseRequestParams): void {
+    if (!params.currentModelInfo) {
+      throw new ApiError("模型信息未指定", 0, "MODEL_INFO_NOT_SPECIFIED");
     }
   }
 
@@ -221,23 +270,29 @@ export class AIClientManager {
    * @param params 请求参数
    */
   public async callStream(params: StreamRequestParams): Promise<void> {
-    this.validateClient();
+    this.validateRequestParams(params);
     
-    const { text, onData, requestType = RequestType.CHAT, abortController } = params;
-
-      console.log("AIClientManager callStream", { 
-        providerId: this.currentProvider?.id, 
-        modelId: this.config?.modelId,
-        requestType,
-        textLength: text.length 
-      });
+    const { text, onData, currentModelInfo, requestType = RequestType.CHAT, abortController } = params;
 
     try {
-      const model = this.getModelName();
+      // 解析模型信息并获取配置
+      const modelConfig = this.parseModelInfo(currentModelInfo);
+      
+      // 创建客户端配置
+      const config: AIClientConfig = {
+        providerId: modelConfig.providerId,
+        modelId: modelConfig.modelId,
+        apiBaseUrl: modelConfig.apiBaseUrl,
+        apiKey: modelConfig.apiKey
+      };
+      
+      // 获取或创建客户端
+      const client = this.getOrCreateClient(config);
+      const model = this.validateModelId(modelConfig.modelId);
       const messages = this.buildMessages(text, requestType);
 
       const result = await streamText({
-        model: this.client(model),
+        model: client(model),
         messages,
         temperature: OPENAI_TEMPERATURE,
         abortSignal: abortController?.signal,
@@ -266,16 +321,29 @@ export class AIClientManager {
    * @returns 响应文本
    */
   public async call(params: BaseRequestParams): Promise<string> {
-    this.validateClient();
+    this.validateRequestParams(params);
     
-    const { text, requestType = RequestType.CHAT, abortController } = params;
+    const { text, currentModelInfo, requestType = RequestType.CHAT, abortController } = params;
 
     try {
-      const model = this.getModelName();
+      // 解析模型信息并获取配置
+      const modelConfig = this.parseModelInfo(currentModelInfo);
+      
+      // 创建客户端配置
+      const config: AIClientConfig = {
+        providerId: modelConfig.providerId,
+        modelId: modelConfig.modelId,
+        apiBaseUrl: modelConfig.apiBaseUrl,
+        apiKey: modelConfig.apiKey
+      };
+      
+      // 获取或创建客户端
+      const client = this.getOrCreateClient(config);
+      const model = this.validateModelId(modelConfig.modelId);
       const messages = this.buildMessages(text, requestType);
 
       const result = await generateText({
-        model: this.client(model),
+        model: client(model),
         messages,
         temperature: OPENAI_TEMPERATURE,
         abortSignal: abortController?.signal,
@@ -288,87 +356,54 @@ export class AIClientManager {
   }
 
   /**
-   * 获取当前配置信息
-   * @returns 当前配置
-   */
-  public getConfig(): AIClientConfig | null {
-    return this.config;
-  }
-
-  /**
-   * 获取当前提供商信息
+   * 获取提供商信息
+   * @param providerId 提供商ID
    * @returns 提供商配置
    */
-  public getCurrentProvider(): Provider | null {
-    return this.currentProvider;
+  public getProvider(providerId: string): Provider | null {
+    return this.getProviderConfig(providerId);
   }
 
   /**
-   * 获取当前提供商ID
-   * @returns 提供商ID
+   * 检查提供商是否可用
+   * @param providerId 提供商ID
+   * @returns 是否可用
    */
-  public getProviderId(): string | null {
-    return this.currentProvider?.id || null;
+  public isProviderAvailable(providerId: string): boolean {
+    const provider = this.getProviderConfig(providerId);
+    return provider !== null && provider.enabled;
   }
 
   /**
-   * 检查客户端是否已初始化
-   * @returns 是否已初始化
+   * 清除客户端缓存
+   * @param providerId 可选的提供商ID，如果不提供则清除所有缓存
    */
-  public isInitialized(): boolean {
-    return this.client !== null && this.config !== null;
-  }
-
-  /**
-   * 动态切换模型
-   * @param modelId 新的模型ID
-   * @param providerId 提供商ID（可选）
-   * @param providerConfig 提供商配置（可选，如果不提供则使用当前配置）
-   */
-  public switchModel(modelId: string, providerId?: string, providerConfig?: { apiBaseUrl: string; apiKey: string }): void {
-    if (!this.config) {
-      throw new ApiError("客户端配置未初始化", 0, "CLIENT_NOT_CONFIGURED");
-    }
-
-    // 如果提供了新的提供商ID，需要重新初始化
-    if (providerId && providerId !== this.config.providerId) {
-      const newConfig: AIClientConfig = {
-        providerId,
-        modelId,
-        apiBaseUrl: providerConfig?.apiBaseUrl,
-        apiKey: providerConfig?.apiKey
-      };
-      this.initialize(newConfig);
+  public clearCache(providerId?: string): void {
+    if (providerId) {
+      // 清除特定提供商的缓存
+      const keysToDelete = Array.from(this.clientCache.keys()).filter(key => key.startsWith(`${providerId}-`));
+      keysToDelete.forEach(key => this.clientCache.delete(key));
+      console.log(`已清除提供商 ${providerId} 的客户端缓存`);
     } else {
-      // 只是切换模型，不改变提供商
-      this.config.modelId = modelId;
-      
-      // 如果提供了新的配置，更新配置
-      if (providerConfig) {
-        this.config.apiBaseUrl = providerConfig.apiBaseUrl;
-        this.config.apiKey = providerConfig.apiKey;
-        this.client = this.createClient();
-      }
+      // 清除所有缓存
+      this.clientCache.clear();
+      console.log('已清除所有客户端缓存');
     }
+  }
+
+  /**
+   * 获取缓存统计信息
+   * @returns 缓存统计
+   */
+  public getCacheStats(): { totalCached: number; providers: string[] } {
+    const providers = Array.from(new Set(
+      Array.from(this.clientCache.keys()).map(key => key.split('-')[0])
+    ));
     
-    console.log(`模型已切换到: ${modelId}, Provider: ${this.currentProvider?.name}`);
-  }
-
-  /**
-   * 获取当前使用的模型ID
-   * @returns 当前模型ID
-   */
-  public getCurrentModel(): string | null {
-    return this.config?.modelId || null;
-  }
-
-  /**
-   * 重置客户端（用于测试或重新配置）
-   */
-  public reset(): void {
-    this.client = null;
-    this.config = null;
-    this.currentProvider = null;
+    return {
+      totalCached: this.clientCache.size,
+      providers
+    };
   }
 }
 

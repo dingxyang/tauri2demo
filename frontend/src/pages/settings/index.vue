@@ -249,7 +249,7 @@ const getAvailableModels = (providerId: string) => {
     console.log("model", model);
     models.push({
       id: key,
-      name: model.name,
+      name: key,
     });
   });
   return models;
