@@ -57,20 +57,18 @@ export const providers: ProvidersMap = {
   "doubao": {
     id: "doubao",
     name: '火山引擎（豆包）',
-    api: "https://ark.cn-beijing.volces.com/v1",
+    api: "https://ark.cn-beijing.volces.com/api/v3",
     doc: 'https://www.volcengine.com/docs/82379',
     enabled: true,
-    defaultModel: 'deepseek-v3-0324',
+    defaultModel: 'deepseek-v3-250324',
     creator: createOpenAICompatible,
     models: {
       'deepseek-v3-250324': models['deepseek-v3-0324'],
       'deepseek-v3-1-250821': models['deepseek-v3-1'],
-      'deepseek-v3-1-terminus': models['deepseek-v3-1-terminus'],
-      'doubao-seed-1-6-250615': models['doubao-seed-1.6'],
       'kimi-k2-250905': models['kimi-k2-0905'],
     },
     options: {
-      baseURL: "https://ark.cn-beijing.volces.com/v1",
+      baseURL: "https://ark.cn-beijing.volces.com/api/v3",
       apiKey: "",
     },
   },
