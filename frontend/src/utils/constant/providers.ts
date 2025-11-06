@@ -15,6 +15,7 @@ export interface Provider {
   env?: string[];
   doc?: string;
   enabled: boolean;
+  available?: boolean; // 是否测试通过
   defaultModel: string;
   models: Record<string, Omit<Model, 'id' | 'cost'>>;
   creator?: (config: any) => any;
