@@ -57,11 +57,9 @@ export const setCachedTestResult = (providerId: string, result: boolean) => {
 };
 
 // 检查缓存是否过期 (默认1小时)
-export const isCacheExpired = (timestamp: number, expireTime) => {
-  if (!expireTime) {
-    return false;
-  }
-  return Date.now() - timestamp > expireTime;
+export const isCacheExpired = (timestamp: number, expireTime = 3600000) => {
+  // return Date.now() - timestamp > expireTime;
+  return false;
 };
 
 // 清除指定提供商的缓存

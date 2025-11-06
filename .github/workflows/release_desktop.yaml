@@ -122,6 +122,6 @@ jobs:
           tagName: ${{ env.TAG_NAME }}
           releaseName: ${{ env.RELEASE_NAME }}
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: false
+          releaseDraft: true
           prerelease: ${{ env.PRERELEASE }}
           args: ${{ matrix.args }}
