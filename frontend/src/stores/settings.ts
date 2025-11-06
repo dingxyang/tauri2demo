@@ -1,6 +1,14 @@
 import { defineStore } from "pinia";
 import { reactive } from "vue";
-import { getCurrentModelInfo, getSettings, setCurrentModelInfo, setSettings } from "@/utils/localStorage";
+import { 
+  getCurrentModelInfo, 
+  getSettings, 
+  setCurrentModelInfo, 
+  setSettings,
+  getCachedModels,
+  getCachedTestResult,
+  isCacheExpired
+} from "@/utils/localStorage";
 import { 
   createProviderConfig, 
 } from "@/utils/constant/providers";
@@ -56,6 +64,34 @@ export const useSettingsStore = defineStore("settings", () => {
             if (savedConfig.name && providerId === "openai-compatible") {
               currentProvider.name = savedConfig.name;
               currentProvider.options = currentProvider.options || {};
+            }
+            
+            // 加载缓存的模型列表
+            const cachedModels = getCachedModels(providerId);
+            if (cachedModels) {
+              try {
+                const modelCache = JSON.parse(cachedModels);
+                if (modelCache && !isCacheExpired(modelCache.timestamp)) {
+                  currentProvider.models = modelCache.models;
+                  console.log(`已加载 ${providerId} 的缓存模型列表`);
+                }
+              } catch (error) {
+                console.warn(`加载 ${providerId} 模型缓存失败:`, error);
+              }
+            }
+            
+            // 加载缓存的测试结果
+            const cachedTestResult = getCachedTestResult(providerId);
+            if (cachedTestResult) {
+              try {
+                const testCache = JSON.parse(cachedTestResult);
+                if (testCache && !isCacheExpired(testCache.timestamp)) {
+                  currentProvider.available = testCache.available;
+                  console.log(`已加载 ${providerId} 的缓存测试结果: ${testCache.available}`);
+                }
+              } catch (error) {
+                console.warn(`加载 ${providerId} 测试结果缓存失败:`, error);
+              }
             }
           }
         });
