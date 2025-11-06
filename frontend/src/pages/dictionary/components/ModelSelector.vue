@@ -1,7 +1,16 @@
 <!-- 模型选择器组件 -->
 <template>
   <div class="model-selector">
-    <div class="model-display-wrapper" @click="handleDisplayClick">
+    <div v-if="enabledProviders.length === 0" class="model-display-wrapper disabled">
+      <div>
+        <span  style="color: #ff7f7f;" class="model-name">请先启用服务提供商</span>
+      </div>
+    </div>
+    <div
+      v-else
+      class="model-display-wrapper"
+      @click="handleDisplayClick"
+    >
       <div class="current-model-display">
         <span class="model-name">{{ currentModelName || '选择模型' }}</span>
         <el-icon class="dropdown-icon">
@@ -9,7 +18,6 @@
         </el-icon>
       </div>
     </div>
-    
     <el-select 
       ref="selectRef"
       v-model="selectedModel" 
@@ -96,7 +104,7 @@ const enabledProviders = computed(() => {
   // 遍历所有提供商配置
   Object.keys(settings.providers).forEach(providerKey => {
     const providerConfig = settings.providers[providerKey];
-    if (providerConfig.enabled) {
+    if (providerConfig.enabled && providerConfig.available) {
       // 将模型对象转换为数组，并添加id字段
       const models = Object.entries(providerConfig.models).map(([modelKey, modelData]) => ({
         id: modelKey,
@@ -117,6 +125,10 @@ const enabledProviders = computed(() => {
 
 // 计算当前选中模型的显示名称
 const currentModelName = computed(() => {
+  if (enabledProviders.value.length === 0) {
+    return '请先配置模型';
+  }
+
   if (!selectedModel.value) {
     // 如果没有选中模型，显示默认模型名称
     const defaultModelInfo = settingsStore.settingsState.defaultModelInfo;
