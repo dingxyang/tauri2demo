@@ -73,7 +73,6 @@ export const useSettingsStore = defineStore("settings", () => {
                 const modelCache = JSON.parse(cachedModels);
                 if (modelCache && !isCacheExpired(modelCache.timestamp)) {
                   currentProvider.models = modelCache.models;
-                  console.log(`已加载 ${providerId} 的缓存模型列表`);
                 }
               } catch (error) {
                 console.warn(`加载 ${providerId} 模型缓存失败:`, error);
@@ -87,7 +86,6 @@ export const useSettingsStore = defineStore("settings", () => {
                 const testCache = JSON.parse(cachedTestResult);
                 if (testCache && !isCacheExpired(testCache.timestamp)) {
                   currentProvider.available = testCache.available;
-                  console.log(`已加载 ${providerId} 的缓存测试结果: ${testCache.available}`);
                 }
               } catch (error) {
                 console.warn(`加载 ${providerId} 测试结果缓存失败:`, error);

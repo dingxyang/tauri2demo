@@ -5,8 +5,8 @@
       class="nav-item" 
       :class="{ active: $route.name === 'Home' }"
     >
-      <div class="nav-icon">🏠</div>
-      <span class="nav-text">首页</span>
+      <div class="nav-icon">🔍</div>
+      <span class="nav-text">行业动态</span>
     </router-link>
     
     <router-link 
