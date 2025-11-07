@@ -5,13 +5,22 @@ import type { ListItem } from "../../types";
 
 const router = useRouter();
 
-// 列表数据
+// 文章列表数据
 const listItems = ref<ListItem[]>([
-  { id: 1, title: '项目一', description: '这是第一个项目的描述' },
-  { id: 2, title: '项目二', description: '这是第二个项目的描述' },
-  { id: 3, title: '项目三', description: '这是第三个项目的描述' },
-  { id: 4, title: '项目四', description: '这是第四个项目的描述' },
-  { id: 5, title: '项目五', description: '这是第五个项目的描述' },
+  { 
+    id: 1, 
+    title: 'QShell 功能介绍', 
+    description: 'QShell 功能介绍',
+    url: 'https://tea4go.github.io/',
+    publishTime: '2024-11-04'
+  },
+  { 
+    id: 2, 
+    title: '大模型比拼：MiniMax M2 vs GLM 4.6 vs Claude Sonnet 4.5', 
+    description: '大模型比拼：MiniMax M2 vs GLM 4.6 vs Claude Sonnet 4.5',
+    url: 'https://www.ruanyifeng.com/blog/2025/11/minimax-m2.html',
+    publishTime: '2024-11-04'
+  },
 ]);
 
 // 切换到详情页
@@ -21,7 +30,9 @@ function goToDetail(item: ListItem) {
     params: { id: item.id.toString() },
     query: { 
       title: item.title,
-      description: item.description
+      description: item.description,
+      url: item.url || '',
+      publishTime: item.publishTime || ''
     }
   });
 }
@@ -35,7 +46,7 @@ function goToDetail(item: ListItem) {
     
     <el-main class="main-content">
       <div class="list-container">
-        <h2>项目列表</h2>
+        <h2>行业动态</h2>
         <div class="list">
           <div 
             v-for="item in listItems" 

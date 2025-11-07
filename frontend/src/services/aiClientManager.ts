@@ -100,7 +100,6 @@ export class AIClientManager {
     // 缓存客户端
     this.clientCache.set(cacheKey, client);
     
-    console.log(`AI客户端已创建，Provider: ${provider.name}`);
     return client;
   }
 
