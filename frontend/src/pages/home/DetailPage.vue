@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { fetch } from '@tauri-apps/plugin-http';
+import { fetch } from "@tauri-apps/plugin-http";
 
 const route = useRoute();
 const router = useRouter();
@@ -14,7 +14,8 @@ const fetchError = ref<string | null>(null);
 const articleHtml = ref("");
 
 const scriptRegex = /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi;
-const metaCspRegex = /<meta\b[^>]*http-equiv=["']?content-security-policy["']?[^>]*>/gi;
+const metaCspRegex =
+  /<meta\b[^>]*http-equiv=["']?content-security-policy["']?[^>]*>/gi;
 
 const selectedItem = computed(() => {
   const id = route.params.id;
@@ -29,7 +30,7 @@ const selectedItem = computed(() => {
       title,
       description,
       url,
-      publishTime
+      publishTime,
     };
   }
   return null;
@@ -40,7 +41,9 @@ const isLoading = computed(() => {
     return true;
   }
   const hasContent = Boolean(articleHtml.value || selectedItem.value?.url);
-  return hasContent && !iframeLoaded.value && !iframeError.value && !fetchError.value;
+  return (
+    hasContent && !iframeLoaded.value && !iframeError.value && !fetchError.value
+  );
 });
 
 function resetState() {
@@ -50,7 +53,10 @@ function resetState() {
   fetchError.value = null;
 }
 
-function extractSection(html: string, tag: string): { tagOpen: string; inner: string } | null {
+function extractSection(
+  html: string,
+  tag: string
+): { tagOpen: string; inner: string } | null {
   const lower = html.toLowerCase();
   const openMarker = `<${tag}`;
   const closeMarker = `</${tag}>`;
@@ -68,7 +74,9 @@ function extractSection(html: string, tag: string): { tagOpen: string; inner: st
   }
 
   const openEnd = start + openEndRel + 1;
-  const attrs = html.slice(start + openMarker.length, start + openEndRel).trim();
+  const attrs = html
+    .slice(start + openMarker.length, start + openEndRel)
+    .trim();
   const tagOpen = attrs ? `<${tag} ${attrs}>` : `<${tag}>`;
 
   const restLower = lower.slice(openEnd);
@@ -116,7 +124,9 @@ table {
 
   if (bodySection) {
     const headSection = extractSection(rawHtml, "head");
-    finalHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">${baseTag}${customStyle}${headSection?.inner ?? ""}</head>${bodySection.tagOpen}${bodySection.inner}</body></html>`;
+    finalHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">${baseTag}${customStyle}${
+      headSection?.inner ?? ""
+    }</head>${bodySection.tagOpen}${bodySection.inner}</body></html>`;
   } else {
     const createTemplate = (content: string) =>
       `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">${baseTag}${customStyle}</head><body>${content}</body></html>`;
@@ -129,7 +139,10 @@ table {
 
       if (insertRel !== -1) {
         const insertAt = headPos + insertRel + 1;
-        finalHtml = `${rawHtml.slice(0, insertAt)}${baseTag}${customStyle}${rawHtml.slice(insertAt)}`;
+        finalHtml = `${rawHtml.slice(
+          0,
+          insertAt
+        )}${baseTag}${customStyle}${rawHtml.slice(insertAt)}`;
       } else {
         finalHtml = createTemplate(rawHtml);
       }
@@ -145,7 +158,11 @@ table {
 async function loadArticle(url: string) {
   isFetching.value = true;
   try {
-    const response = await fetch(url, { redirect: "follow", credentials: "omit" });
+    // HTTP/HTTPS URL 使用 fetch
+    const response = await fetch(url, {
+      redirect: "follow",
+      credentials: "omit",
+    });
 
     if (!response.ok) {
       throw new Error(`请求文章内容失败，状态码: ${response.status}`);
@@ -163,16 +180,20 @@ async function loadArticle(url: string) {
   }
 }
 
-watch(selectedItem, (item) => {
-  resetState();
-  isFetching.value = false;
+watch(
+  selectedItem,
+  (item) => {
+    resetState();
+    isFetching.value = false;
 
-  if (!item?.url) {
-    return;
-  }
+    if (!item?.url) {
+      return;
+    }
 
-  void loadArticle(item.url);
-}, { immediate: true });
+    void loadArticle(item.url);
+  },
+  { immediate: true }
+);
 
 watch(articleHtml, (value) => {
   if (value) {
@@ -218,12 +239,10 @@ async function openInBrowser(event?: Event) {
 <template>
   <div class="detail-page">
     <header class="header">
-      <button class="back-button" @click="goBack">
-        ← 返回
-      </button>
+      <button class="back-button" @click="goBack">← 返回</button>
       <h1>文章详情</h1>
     </header>
-    
+
     <div v-if="selectedItem" class="detail-content">
       <div class="article-header">
         <h2>{{ selectedItem.title }}</h2>
@@ -231,22 +250,14 @@ async function openInBrowser(event?: Event) {
           <span v-if="selectedItem.publishTime" class="publish-time">
             发布时间：{{ selectedItem.publishTime }}
           </span>
-          <a 
-            v-if="selectedItem.url" 
-            :href="selectedItem.url" 
-            target="_blank" 
-            class="original-link"
-            @click.prevent="openInBrowser"
-          >
-            在浏览器打开
-          </a>
         </div>
       </div>
-      
-      <div class="iframe-container" v-loading="isLoading"
-      element-loading-text="正在加载文章内容..."
+
+      <div
+        class="iframe-container"
+        v-loading="isLoading"
+        element-loading-text="正在加载文章内容..."
       >
-        
         <template v-if="articleHtml">
           <iframe
             :srcdoc="articleHtml"
@@ -260,7 +271,7 @@ async function openInBrowser(event?: Event) {
         </template>
 
         <template v-else-if="selectedItem.url && !fetchError">
-          <iframe 
+          <iframe
             :src="selectedItem.url"
             class="article-iframe"
             frameborder="0"
@@ -309,13 +320,13 @@ async function openInBrowser(event?: Event) {
 }
 
 .header {
-  background-color: #007AFF;
+  background-color: #007aff;
   color: white;
   padding: 1rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
@@ -331,7 +342,7 @@ async function openInBrowser(event?: Event) {
 }
 
 .back-button:hover {
-  background-color: rgba(255,255,255,0.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .header h1 {
@@ -347,7 +358,7 @@ async function openInBrowser(event?: Event) {
   margin: 1rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
@@ -379,17 +390,17 @@ async function openInBrowser(event?: Event) {
 }
 
 .original-link {
-  color: #007AFF;
+  color: #007aff;
   text-decoration: none;
   padding: 0.25rem 0.5rem;
-  border: 1px solid #007AFF;
+  border: 1px solid #007aff;
   border-radius: 4px;
   font-size: 0.8rem;
   transition: all 0.2s;
 }
 
 .original-link:hover {
-  background-color: #007AFF;
+  background-color: #007aff;
   color: white;
 }
 
@@ -431,15 +442,19 @@ async function openInBrowser(event?: Event) {
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #007AFF;
+  border-top: 4px solid #007aff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 备用方案样式 */
@@ -490,13 +505,13 @@ async function openInBrowser(event?: Event) {
 }
 
 .open-button.primary {
-  background-color: #007AFF;
+  background-color: #007aff;
   color: white;
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
 
 .open-button.primary:hover {
-  background-color: #0056CC;
+  background-color: #0056cc;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
 }
@@ -510,7 +525,7 @@ async function openInBrowser(event?: Event) {
 
 .open-button.secondary:hover {
   background-color: #e9ecef;
-  border-color: #007AFF;
+  border-color: #007aff;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
@@ -530,7 +545,7 @@ async function openInBrowser(event?: Event) {
   padding: 1.5rem;
   background-color: #f8f9fa;
   border-radius: 12px;
-  border-left: 4px solid #007AFF;
+  border-left: 4px solid #007aff;
   max-width: 500px;
   text-align: left;
 }
@@ -549,7 +564,8 @@ async function openInBrowser(event?: Event) {
   font-size: 0.95rem;
 }
 
-.no-url, .no-data {
+.no-url,
+.no-data {
   text-align: center;
   color: #999;
   padding: 2rem;
@@ -559,7 +575,8 @@ async function openInBrowser(event?: Event) {
   height: 100%;
 }
 
-.no-url p, .no-data p {
+.no-url p,
+.no-data p {
   margin: 0;
   font-size: 1rem;
 }
@@ -569,37 +586,35 @@ async function openInBrowser(event?: Event) {
   .header {
     padding: 0.75rem;
   }
-  
+
   .header h1 {
     font-size: 1.25rem;
   }
-  
+
   .detail-content {
     margin: 0.5rem;
   }
-  
+
   .article-header {
     padding: 1rem;
   }
-  
+
   .article-header h2 {
     font-size: 1.2rem;
   }
-  
+
   .article-meta {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .iframe-container {
     padding: 0 1rem 1rem 1rem;
   }
-  
+
   .article-iframe {
     min-height: 300px;
   }
 }
-
-
-</style> 
+</style>

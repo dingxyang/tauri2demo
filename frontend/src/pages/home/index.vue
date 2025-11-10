@@ -6,22 +6,36 @@ import type { ListItem } from "../../types";
 const router = useRouter();
 
 // 文章列表数据
-const listItems = ref<ListItem[]>([
-  { 
-    id: 1, 
-    title: 'QShell 功能介绍', 
-    description: 'QShell 功能介绍',
-    url: 'https://tea4go.github.io/',
-    publishTime: '2024-11-04'
-  },
-  { 
-    id: 2, 
-    title: '大模型比拼：MiniMax M2 vs GLM 4.6 vs Claude Sonnet 4.5', 
-    description: '大模型比拼：MiniMax M2 vs GLM 4.6 vs Claude Sonnet 4.5',
-    url: 'https://www.ruanyifeng.com/blog/2025/11/minimax-m2.html',
-    publishTime: '2024-11-04'
-  },
-]);
+// 加入月份维度，数据结构按月份分组
+const listItemsByMonth = ref<Record<string, ListItem[]>>({
+  "2025-11": [
+    { 
+      id: 2, 
+      title: '巴拿马官员：中企承建的运河第四大桥让巴拿马人倍感自豪', 
+      description: '巴拿马官员：中企承建的运河第四大桥让巴拿马人倍感自豪 ... 由中国交建和中国港湾联营体承建的巴拿马运河第四大桥东主塔承台首层混凝土11月1日正式开始浇筑，...',
+      url: 'https://news.qq.com/rain/a/20251102A03SAY00',
+      publishTime: '2024-11-04'
+    },
+    { 
+      id: 1, 
+      title: '国内业务下滑海外签单大涨，基建巨头集体出海“掘金”', 
+      description: '中国交建是我国的基建出海龙头之一。近几年来，中国交建拿下的类似海外业务数量不少。2023年，该集团境外新签订单3197.46亿元， ...',
+      url: 'https://cj.sina.com.cn/articles/view/1733360754/6750fc7202001e6u0',
+      publishTime: '2024-11-04'
+    }
+  ],
+  "2025-10": [
+    { 
+      id: 1, 
+      title: '中美在马来西亚吉隆坡举行经贸磋商', 
+      description: '当地时间10月25日至26日，中美经贸中方牵头人、国务院副总理何立峰与美方牵头人、美国财政部长贝森特和贸易代表格里尔在马来西亚吉隆坡举行中美经贸 ...',
+      url: 'https://www.gov.cn/yaowen/liebiao/202510/content_7045727.htm',
+      publishTime: '2024-11-04'
+    },
+  ]
+});
+
+const activeNames = ref<string[]>(['2025-11', '2025-10']);
 
 // 切换到详情页
 function goToDetail(item: ListItem) {
@@ -41,22 +55,27 @@ function goToDetail(item: ListItem) {
 <template>
   <el-container class="home-page">
     <el-header class="flex-header">
-      <h1>我的应用</h1>
+      <h1>行业动态</h1>
     </el-header>
     
     <el-main class="main-content">
       <div class="list-container">
-        <h2>行业动态</h2>
-        <div class="list">
-          <div 
-            v-for="item in listItems" 
-            :key="item.id"
-            class="list-item"
-            @click="goToDetail(item)"
-          >
-            <div class="item-title">{{ item.title }}</div>
-            <div class="item-description">{{ item.description }}</div>
-          </div>
+        <div v-for="month in Object.keys(listItemsByMonth)" :key="month">
+          <el-collapse v-model="activeNames">
+            <el-collapse-item :title="month" :name="month">
+              <div class="list">
+                <div 
+                  v-for="item in listItemsByMonth[month]" 
+                  :key="item.id"
+                  class="list-item"
+                  @click="goToDetail(item)"
+                >
+                  <div class="item-title">{{ item.title }}</div>
+                  <div class="item-description">{{ item.description }}</div>
+                </div>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
         </div>
       </div>
     </el-main>
