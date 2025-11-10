@@ -1,4 +1,20 @@
 <script setup lang="ts">
+/**
+ * DetailPage - 文章详情页组件
+ * 
+ * 功能概述：
+ * 1. 从路由参数获取文章信息并展示
+ * 2. 使用 Tauri HTTP 插件获取文章原始 HTML 内容
+ * 3. 清理并美化 HTML（移除脚本、添加样式、处理资源路径）
+ * 4. 通过 iframe srcdoc 安全地展示文章内容
+ * 5. 提供在系统浏览器中打开文章的备用方案
+ * 
+ * 技术要点：
+ * - 使用 srcdoc 而非 src 避免跨域限制
+ * - 移除 script 标签防止 XSS 攻击
+ * - 添加 base 标签确保相对路径资源正确加载
+ * - 处理 iframe 加载失败的情况（X-Frame-Options 阻止）
+ */
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -7,16 +23,22 @@ import { fetch } from "@tauri-apps/plugin-http";
 const route = useRoute();
 const router = useRouter();
 
-const iframeLoaded = ref(false);
-const iframeError = ref(false);
-const isFetching = ref(false);
-const fetchError = ref<string | null>(null);
-const articleHtml = ref("");
+// 状态管理
+const iframeLoaded = ref(false); // iframe 是否加载完成
+const iframeError = ref(false); // iframe 是否加载失败
+const isFetching = ref(false); // 是否正在获取文章内容
+const fetchError = ref<string | null>(null); // 获取文章内容的错误信息
+const articleHtml = ref(""); // 处理后的文章 HTML 内容
 
+// 正则表达式：用于清理 HTML 中的 script 标签和 CSP meta 标签
 const scriptRegex = /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi;
 const metaCspRegex =
   /<meta\b[^>]*http-equiv=["']?content-security-policy["']?[^>]*>/gi;
 
+/**
+ * 从路由参数中提取文章信息
+ * 通过 URL 参数传递文章的详细信息，避免复杂的状态管理
+ */
 const selectedItem = computed(() => {
   const id = route.params.id;
   const title = route.query.title as string;
@@ -36,6 +58,10 @@ const selectedItem = computed(() => {
   return null;
 });
 
+/**
+ * 计算加载状态
+ * 当正在获取内容或有内容但 iframe 未加载完成时显示加载动画
+ */
 const isLoading = computed(() => {
   if (isFetching.value) {
     return true;
@@ -46,6 +72,10 @@ const isLoading = computed(() => {
   );
 });
 
+/**
+ * 重置所有状态
+ * 在切换文章或重新加载时清空之前的状态
+ */
 function resetState() {
   iframeLoaded.value = false;
   iframeError.value = false;
@@ -53,6 +83,15 @@ function resetState() {
   fetchError.value = null;
 }
 
+/**
+ * 从 HTML 字符串中提取指定标签的内容和属性
+ * @param html - 完整的 HTML 字符串
+ * @param tag - 要提取的标签名（如 'body', 'head'）
+ * @returns 返回包含开始标签和内部内容的对象，如果未找到则返回 null
+ * 
+ * 例如: extractSection('<body class="main">content</body>', 'body')
+ * 返回: { tagOpen: '<body class="main">', inner: 'content' }
+ */
 function extractSection(
   html: string,
   tag: string
@@ -66,6 +105,7 @@ function extractSection(
     return null;
   }
 
+  // 从开始标签位置截取剩余部分
   const tail = html.slice(start);
   const openEndRel = tail.indexOf(">");
 
@@ -73,12 +113,14 @@ function extractSection(
     return null;
   }
 
+  // 计算开始标签结束的位置，并提取标签属性
   const openEnd = start + openEndRel + 1;
   const attrs = html
     .slice(start + openMarker.length, start + openEndRel)
     .trim();
   const tagOpen = attrs ? `<${tag} ${attrs}>` : `<${tag}>`;
 
+  // 查找闭合标签
   const restLower = lower.slice(openEnd);
   const closeRel = restLower.indexOf(closeMarker);
 
@@ -86,15 +128,30 @@ function extractSection(
     return null;
   }
 
+  // 提取标签内部的内容
   const innerEnd = openEnd + closeRel;
   const inner = html.slice(openEnd, innerEnd);
 
   return { tagOpen, inner };
 }
 
+/**
+ * 清理和美化文章 HTML 内容
+ * @param rawHtml - 原始的 HTML 内容
+ * @param finalUrl - 文章的最终 URL（用于处理相对路径）
+ * @returns 处理后的安全 HTML 内容
+ * 
+ * 主要处理：
+ * 1. 添加 base 标签确保相对路径资源正确加载
+ * 2. 注入自定义样式优化阅读体验
+ * 3. 移除所有 script 标签防止 XSS 攻击
+ * 4. 移除 CSP meta 标签避免内容安全策略冲突
+ */
 function sanitizeArticleHtml(rawHtml: string, finalUrl: string) {
   const origin = new URL(finalUrl).origin;
+  // 添加 base 标签，让相对路径的资源（图片、CSS等）能正确加载
   const baseTag = `<base href="${origin}">`;
+  // 自定义样式：优化文章阅读体验
   const customStyle = `<style>
 html, body {
   background: #ffffff;
@@ -122,18 +179,22 @@ table {
   let finalHtml: string;
   const bodySection = extractSection(rawHtml, "body");
 
+  // 情况1: HTML 包含完整的 body 标签
   if (bodySection) {
     const headSection = extractSection(rawHtml, "head");
+    // 重构完整 HTML，在 head 中注入 base 和样式
     finalHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">${baseTag}${customStyle}${
       headSection?.inner ?? ""
     }</head>${bodySection.tagOpen}${bodySection.inner}</body></html>`;
   } else {
+    // 情况2: HTML 不包含完整 body 标签（可能是片段）
     const createTemplate = (content: string) =>
       `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">${baseTag}${customStyle}</head><body>${content}</body></html>`;
 
     const headPos = rawHtml.toLowerCase().indexOf("<head");
 
     if (headPos !== -1) {
+      // 找到 head 标签，在其后面插入 base 和样式
       const sliceFromHead = rawHtml.slice(headPos);
       const insertRel = sliceFromHead.indexOf(">");
 
@@ -144,24 +205,38 @@ table {
           insertAt
         )}${baseTag}${customStyle}${rawHtml.slice(insertAt)}`;
       } else {
+        // head 标签不完整，用模板包裹
         finalHtml = createTemplate(rawHtml);
       }
     } else {
+      // 没有 head 标签，用模板包裹整个内容
       finalHtml = createTemplate(rawHtml);
     }
   }
 
+  // 移除所有 script 标签（安全考虑）
   const withoutScripts = finalHtml.replace(scriptRegex, "");
+  // 移除 CSP meta 标签（避免内容安全策略阻止嵌入）
   return withoutScripts.replace(metaCspRegex, "");
 }
 
+/**
+ * 加载文章内容
+ * @param url - 文章的 URL 地址
+ * 
+ * 流程：
+ * 1. 使用 Tauri 的 fetch 插件获取文章 HTML
+ * 2. 处理重定向和跨域问题
+ * 3. 清理和美化 HTML 内容
+ * 4. 将处理后的内容赋值给 articleHtml 用于 iframe 显示
+ */
 async function loadArticle(url: string) {
   isFetching.value = true;
   try {
-    // HTTP/HTTPS URL 使用 fetch
+    // 使用 Tauri HTTP 插件获取文章内容（支持跨域）
     const response = await fetch(url, {
-      redirect: "follow",
-      credentials: "omit",
+      redirect: "follow", // 自动跟随重定向
+      credentials: "omit", // 不发送凭证
     });
 
     if (!response.ok) {
@@ -169,7 +244,7 @@ async function loadArticle(url: string) {
     }
 
     const rawHtml = await response.text();
-    const finalUrl = response.url || url;
+    const finalUrl = response.url || url; // 获取最终 URL（可能经过重定向）
     articleHtml.value = sanitizeArticleHtml(rawHtml, finalUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -180,6 +255,11 @@ async function loadArticle(url: string) {
   }
 }
 
+/**
+ * 监听选中的文章变化
+ * 当路由参数变化时（即选中不同文章），重置状态并加载新文章
+ * immediate: true 表示组件挂载时立即执行
+ */
 watch(
   selectedItem,
   (item) => {
@@ -195,21 +275,36 @@ watch(
   { immediate: true }
 );
 
+/**
+ * 监听文章 HTML 内容变化
+ * 当新内容加载时，重置 iframe 加载状态
+ */
 watch(articleHtml, (value) => {
   if (value) {
     iframeLoaded.value = false;
   }
 });
 
+/**
+ * 返回到文章列表页
+ */
 function goBack() {
   router.push("/");
 }
 
+/**
+ * iframe 加载成功回调
+ * 标记加载完成，隐藏加载动画
+ */
 function onIframeLoad() {
   iframeLoaded.value = true;
   iframeError.value = false;
 }
 
+/**
+ * iframe 加载失败回调
+ * 当文章无法通过 iframe 嵌入时触发（如被 X-Frame-Options 阻止）
+ */
 function onIframeError(event: Event) {
   iframeError.value = true;
   if (!fetchError.value) {
@@ -219,6 +314,10 @@ function onIframeError(event: Event) {
   console.error("URL:", selectedItem.value?.url);
 }
 
+/**
+ * 在系统默认浏览器中打开文章链接
+ * 优先使用 Tauri 的 opener 插件，失败则回退到 window.open
+ */
 async function openInBrowser(event?: Event) {
   event?.preventDefault();
   const url = selectedItem.value?.url;
@@ -228,9 +327,11 @@ async function openInBrowser(event?: Event) {
   }
 
   try {
+    // 使用 Tauri 插件打开系统浏览器
     await openUrl(url);
   } catch (error) {
     console.error("使用系统浏览器打开失败:", error);
+    // 回退方案：使用 Web API
     window.open(url, "_blank");
   }
 }
