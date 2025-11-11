@@ -81,7 +81,7 @@ import { aiClientManager } from '@/services/aiClientManager';
 const router = useRouter();
 const settingsStore = useSettingsStore();
 const userInput = ref('abajo');
-const markdownResult = ref("abrasión 翻译成中文");
+const markdownResult = ref("");
 const isLoading = ref(false);
 const streamingText = ref(""); // 存储流式输出的原始文本
 const useStreaming = ref(true); // 默认使用流式输出
