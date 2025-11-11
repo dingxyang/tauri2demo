@@ -1,6 +1,6 @@
 <!-- 系统设置页面，支持设置 OpenAI proxy url 和 api key -->
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onMounted } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import {
   ElInput,
   ElForm,
@@ -11,7 +11,6 @@ import {
   ElOption,
   ElSwitch,
   ElCard,
-  ElDivider,
   FormRules,
 } from "element-plus";
 import { useSettingsStore } from "@/stores/settings";
@@ -21,7 +20,6 @@ import {
   OPENAI_BASE_URL,
   DEEPSEEK_BASE_URL,
 } from "@/utils/constant";
-import { CloseBold } from "@element-plus/icons-vue";
 import { isMobile } from "@/utils/os";
 import { providers } from "@/utils/constant/providers";
 import {
@@ -98,10 +96,6 @@ watch(
   },
   { deep: true }
 );
-
-const goToDictionary = () => {
-  router.push("/dictionary");
-};
 
 // 查询可用模型列表
 const queryModels = async (
@@ -255,7 +249,6 @@ onMounted(() => {
   <el-container class="settings-container">
     <el-header class="settings-header">
       <div class="page-title">{{ $t("settings.title") }}</div>
-      <el-icon @click="goToDictionary"><CloseBold /></el-icon>
     </el-header>
     <el-main class="settings-main">
       <!-- 火山引擎 -->
