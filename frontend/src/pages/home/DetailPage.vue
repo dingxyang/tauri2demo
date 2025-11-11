@@ -19,9 +19,11 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { fetch } from "@tauri-apps/plugin-http";
+import { useSafeArea } from "@/utils/useSafeArea";
 
 const route = useRoute();
 const router = useRouter();
+const { safeAreaTop, safeAreaBottom } = useSafeArea();
 
 // 状态管理
 const iframeLoaded = ref(false); // iframe 是否加载完成
@@ -416,9 +418,13 @@ async function openInBrowser(event?: Event) {
 
 <style scoped>
 .detail-page {
-  height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: #f5f5f5;
+  /* 保留顶部安全区 */
+  padding-top: var(--safe-area-inset-top);
+  box-sizing: border-box; /* padding 计入高度内，不增加总高度 */
   overflow: hidden;
 }
 
