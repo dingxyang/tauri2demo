@@ -1,5 +1,5 @@
 // 文本选择组合式函数
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue';
 import { throttle, debounce } from 'lodash-es';
 import { isMobile } from '@/utils/os';
 
@@ -363,12 +363,21 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
 
   // 处理上下文菜单（移动端长按菜单）
   const handleContextMenu = (event: Event) => {
-    if (isMobile) {
-      // 移动端始终阻止系统上下文菜单，使用自定义弹窗
+    if (!isMobile) return;
+    
+    // 只在容器内阻止系统上下文菜单
+    const target = event.target as HTMLElement;
+    if (!target) return;
+    
+    // 检查是否在容器内
+    if (containerElement && containerElement.contains(target)) {
+      // 只有在结果容器内才阻止系统上下文菜单，使用自定义弹窗
       event.preventDefault();
       event.stopPropagation();
       return false;
     }
+    
+    // 如果不在容器内，允许系统默认行为（例如输入框的粘贴菜单）
   };
 
   // 初始化
@@ -618,6 +627,18 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
   });
 
   onUnmounted(() => {
+    cleanup();
+  });
+
+  // keep-alive 支持：组件激活时重新初始化
+  onActivated(() => {
+    nextTick(() => {
+      init();
+    });
+  });
+
+  // keep-alive 支持：组件失活时清理事件监听器
+  onDeactivated(() => {
     cleanup();
   });
 
