@@ -54,8 +54,8 @@ function goToDetail(item: ListItem) {
 
 <template>
   <el-container class="home-page">
-    <el-header class="flex-header">
-      <h1>行业动态</h1>
+    <el-header class="home-header">
+      <div class="page-title">行业动态</div>
     </el-header>
     
     <el-main class="main-content">
@@ -83,6 +83,21 @@ function goToDetail(item: ListItem) {
 </template>
 
 <style scoped>
+.home-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.home-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .main-content {
   flex: 1;
   padding: 1rem;

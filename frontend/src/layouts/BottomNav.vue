@@ -45,6 +45,9 @@
   display: flex;
   padding: 0.5rem 0;
   box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+
+  /* 适配底部安全区 */
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
 }
 
 .nav-item {

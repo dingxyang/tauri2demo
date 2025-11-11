@@ -1,235 +1,4 @@
 <!-- 系统设置页面，支持设置 OpenAI proxy url 和 api key -->
-<template>
-  <el-container class="settings-container">
-    <el-header class="settings-header flex-header">
-      <h2>{{ $t("settings.title") }}</h2>
-      <el-icon @click="goToDictionary"><CloseBold /></el-icon>
-    </el-header>
-    <el-main class="settings-main">
-      <!-- 火山引擎 -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">火山引擎（豆包）</span>
-            <el-switch 
-             :style="{ '--el-switch-on-color': settings.providers.doubao.available ? '#13ce66' : '#ff4949' }"
-             v-model="settings.providers.doubao.enabled" 
-             />
-          </div>
-        </template>
-        <el-form
-          v-if="settings.providers.doubao.enabled"
-          ref="doubaoFormRef"
-          :rules="providerFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers.doubao"
-          label-width="120px"
-        >
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers.doubao.options.baseURL"
-              :placeholder="VOLCENGINE_BASE_URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers.doubao.options.apiKey"
-              placeholder="请输入火山引擎 API Key"
-              show-password
-            >
-            <template #append>
-                <el-button @click="testProvider('doubao')">测试</el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers.doubao.defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in getAvailableModels('doubao')"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-      <!-- DeepSeek -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">DeepSeek</span>
-            <el-switch 
-            :style="{ '--el-switch-on-color': settings.providers.deepseek.available ? '#13ce66' : '#ff4949' }"
-            v-model="settings.providers.deepseek.enabled" />
-          </div>
-        </template>
-        <el-form
-          v-if="settings.providers.deepseek.enabled"
-          ref="deepseekFormRef"
-          :rules="providerFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers.deepseek"
-          label-width="120px"
-        >
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers.deepseek.options.baseURL"
-              :placeholder="DEEPSEEK_BASE_URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers.deepseek.options.apiKey"
-              placeholder="请输入 DeepSeek API Key"
-              show-password
-            >
-              <template #append>
-                <el-button @click="testProvider('deepseek')">测试</el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers.deepseek.defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in getAvailableModels('deepseek')"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-      <!-- OpenAI 官方 -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">OpenAI 官方</span>
-            <el-switch 
-            :style="{ '--el-switch-on-color': settings.providers.openai.available ? '#13ce66' : '#ff4949' }"
-            v-model="settings.providers.openai.enabled" />
-          </div>
-        </template>
-        <el-form
-          v-if="settings.providers.openai.enabled"
-          ref="openaiFormRef"
-          :rules="providerFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers.openai"
-          label-width="120px"
-        >
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers.openai.options.baseURL"
-              :placeholder="OPENAI_BASE_URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers.openai.options.apiKey"
-              placeholder="请输入 OpenAI API Key"
-              show-password
-              >
-              <template #append>
-                <el-button @click="testProvider('openai')">测试</el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers.openai.defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in getAvailableModels('openai')"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-      <!-- 自定义 OpenAI 兼容 -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">自定义 OpenAI 兼容</span>
-            <el-switch
-            :style="{ '--el-switch-on-color': settings.providers['openai-compatible'].available ? '#13ce66' : '#ff4949' }"
-              v-model="settings.providers['openai-compatible'].enabled"
-            />
-          </div>
-        </template>
-        <el-form
-          v-if="settings.providers['openai-compatible'].enabled"
-          ref="customFormRef"
-          :rules="customProviderFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers['openai-compatible']"
-          label-width="120px"
-        >
-          <el-form-item label="提供商名称" prop="name">
-            <el-input
-              v-model="settings.providers['openai-compatible'].name"
-              placeholder="请输入自定义提供商名称"
-            />
-          </el-form-item>
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers['openai-compatible'].options.baseURL"
-              placeholder="请输入 API Base URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers['openai-compatible'].options.apiKey"
-              placeholder="请输入 API Key"
-              show-password
-              >
-              <template #append>
-                <el-button @click="queryModels('openai-compatible')">测试</el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers['openai-compatible'].defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in customAvailableModels"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              >
-                <span>{{ model.id }}</span>
-                <span
-                  v-if="model.owned_by"
-                  style="float: right; color: #8492a6; font-size: 13px"
-                >
-                  {{ model.owned_by }}
-                </span>
-              </el-option>
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-    </el-main>
-  </el-container>
-</template>
-
 <script setup lang="ts">
 import { computed, ref, watch, nextTick, onMounted } from "vue";
 import {
@@ -255,12 +24,12 @@ import {
 import { CloseBold } from "@element-plus/icons-vue";
 import { isMobile } from "@/utils/os";
 import { providers } from "@/utils/constant/providers";
-import { 
-  setCachedModels, 
-  setCachedTestResult, 
-  getCachedModels, 
+import {
+  setCachedModels,
+  setCachedTestResult,
+  getCachedModels,
   isCacheExpired,
-  clearProviderCache
+  clearProviderCache,
 } from "@/utils/localStorage";
 
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
@@ -335,7 +104,10 @@ const goToDictionary = () => {
 };
 
 // 查询可用模型列表
-const queryModels = async (providerId: string, forceRefresh: boolean = false) => {
+const queryModels = async (
+  providerId: string,
+  forceRefresh: boolean = false
+) => {
   const providerConfig = settings.value.providers[providerId];
   const baseURL = providerConfig.options.baseURL;
   const apiKey = providerConfig.options.apiKey;
@@ -397,7 +169,7 @@ const queryModels = async (providerId: string, forceRefresh: boolean = false) =>
       const models = data.data.sort((a: any, b: any) =>
         a.id.localeCompare(b.id)
       );
-      
+
       customAvailableModels.value = models;
       // 需要把模型存储到 providers 里
       settings.value.providers[providerId].models = models.reduce(
@@ -413,7 +185,7 @@ const queryModels = async (providerId: string, forceRefresh: boolean = false) =>
       // 缓存查询结果
       setCachedModels(providerId, models);
       setCachedTestResult(providerId, true);
-      
+
       ElMessage.success(`成功获取 ${models.length} 个可用模型`);
     } else {
       throw new Error("Invalid response format");
@@ -442,7 +214,7 @@ const testProvider = async (providerId: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: providerConfig.defaultModel,
@@ -453,7 +225,7 @@ const testProvider = async (providerId: string) => {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     // 测试成功，更新状态并缓存结果
     settings.value.providers[providerId].available = true;
     settingsStore.saveSettings({ providers: settings.value.providers });
@@ -469,9 +241,8 @@ const testProvider = async (providerId: string) => {
   }
 };
 
-
 onMounted(() => {
-  const cachedModels = getCachedModels('openai-compatible');
+  const cachedModels = getCachedModels("openai-compatible");
   if (cachedModels) {
     const modelCache = JSON.parse(cachedModels);
     if (modelCache && !isCacheExpired(modelCache.timestamp)) {
@@ -480,15 +251,278 @@ onMounted(() => {
   }
 });
 </script>
+<template>
+  <el-container class="settings-container">
+    <el-header class="settings-header">
+      <div class="page-title">{{ $t("settings.title") }}</div>
+      <el-icon @click="goToDictionary"><CloseBold /></el-icon>
+    </el-header>
+    <el-main class="settings-main">
+      <!-- 火山引擎 -->
+      <el-card class="provider-card" shadow="hover">
+        <template #header>
+          <div class="provider-header">
+            <span class="provider-title">火山引擎（豆包）</span>
+            <el-switch
+              :style="{
+                '--el-switch-on-color': settings.providers.doubao.available
+                  ? '#13ce66'
+                  : '#ff4949',
+              }"
+              v-model="settings.providers.doubao.enabled"
+            />
+          </div>
+        </template>
+        <el-form
+          v-if="settings.providers.doubao.enabled"
+          ref="doubaoFormRef"
+          :rules="providerFormRules"
+          :label-position="isMobile ? 'top' : 'left'"
+          :model="settings.providers.doubao"
+          label-width="120px"
+        >
+          <el-form-item label="API Base URL" prop="options.baseURL">
+            <el-input
+              v-model="settings.providers.doubao.options.baseURL"
+              :placeholder="VOLCENGINE_BASE_URL"
+            />
+          </el-form-item>
+          <el-form-item label="API Key" prop="options.apiKey">
+            <el-input
+              v-model="settings.providers.doubao.options.apiKey"
+              placeholder="请输入火山引擎 API Key"
+              show-password
+            >
+              <template #append>
+                <el-button @click="testProvider('doubao')">测试</el-button>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="选择模型" prop="defaultModel">
+            <el-select
+              v-model="settings.providers.doubao.defaultModel"
+              placeholder="请选择模型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="model in getAvailableModels('doubao')"
+                :key="model.id"
+                :label="model.name"
+                :value="model.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-card>
+      <!-- DeepSeek -->
+      <el-card class="provider-card" shadow="hover">
+        <template #header>
+          <div class="provider-header">
+            <span class="provider-title">DeepSeek</span>
+            <el-switch
+              :style="{
+                '--el-switch-on-color': settings.providers.deepseek.available
+                  ? '#13ce66'
+                  : '#ff4949',
+              }"
+              v-model="settings.providers.deepseek.enabled"
+            />
+          </div>
+        </template>
+        <el-form
+          v-if="settings.providers.deepseek.enabled"
+          ref="deepseekFormRef"
+          :rules="providerFormRules"
+          :label-position="isMobile ? 'top' : 'left'"
+          :model="settings.providers.deepseek"
+          label-width="120px"
+        >
+          <el-form-item label="API Base URL" prop="options.baseURL">
+            <el-input
+              v-model="settings.providers.deepseek.options.baseURL"
+              :placeholder="DEEPSEEK_BASE_URL"
+            />
+          </el-form-item>
+          <el-form-item label="API Key" prop="options.apiKey">
+            <el-input
+              v-model="settings.providers.deepseek.options.apiKey"
+              placeholder="请输入 DeepSeek API Key"
+              show-password
+            >
+              <template #append>
+                <el-button @click="testProvider('deepseek')">测试</el-button>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="选择模型" prop="defaultModel">
+            <el-select
+              v-model="settings.providers.deepseek.defaultModel"
+              placeholder="请选择模型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="model in getAvailableModels('deepseek')"
+                :key="model.id"
+                :label="model.name"
+                :value="model.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-card>
+      <!-- OpenAI 官方 -->
+      <el-card class="provider-card" shadow="hover">
+        <template #header>
+          <div class="provider-header">
+            <span class="provider-title">OpenAI 官方</span>
+            <el-switch
+              :style="{
+                '--el-switch-on-color': settings.providers.openai.available
+                  ? '#13ce66'
+                  : '#ff4949',
+              }"
+              v-model="settings.providers.openai.enabled"
+            />
+          </div>
+        </template>
+        <el-form
+          v-if="settings.providers.openai.enabled"
+          ref="openaiFormRef"
+          :rules="providerFormRules"
+          :label-position="isMobile ? 'top' : 'left'"
+          :model="settings.providers.openai"
+          label-width="120px"
+        >
+          <el-form-item label="API Base URL" prop="options.baseURL">
+            <el-input
+              v-model="settings.providers.openai.options.baseURL"
+              :placeholder="OPENAI_BASE_URL"
+            />
+          </el-form-item>
+          <el-form-item label="API Key" prop="options.apiKey">
+            <el-input
+              v-model="settings.providers.openai.options.apiKey"
+              placeholder="请输入 OpenAI API Key"
+              show-password
+            >
+              <template #append>
+                <el-button @click="testProvider('openai')">测试</el-button>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="选择模型" prop="defaultModel">
+            <el-select
+              v-model="settings.providers.openai.defaultModel"
+              placeholder="请选择模型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="model in getAvailableModels('openai')"
+                :key="model.id"
+                :label="model.name"
+                :value="model.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-card>
+      <!-- 自定义 OpenAI 兼容 -->
+      <el-card class="provider-card" shadow="hover">
+        <template #header>
+          <div class="provider-header">
+            <span class="provider-title">自定义 OpenAI 兼容</span>
+            <el-switch
+              :style="{
+                '--el-switch-on-color': settings.providers['openai-compatible']
+                  .available
+                  ? '#13ce66'
+                  : '#ff4949',
+              }"
+              v-model="settings.providers['openai-compatible'].enabled"
+            />
+          </div>
+        </template>
+        <el-form
+          v-if="settings.providers['openai-compatible'].enabled"
+          ref="customFormRef"
+          :rules="customProviderFormRules"
+          :label-position="isMobile ? 'top' : 'left'"
+          :model="settings.providers['openai-compatible']"
+          label-width="120px"
+        >
+          <el-form-item label="提供商名称" prop="name">
+            <el-input
+              v-model="settings.providers['openai-compatible'].name"
+              placeholder="请输入自定义提供商名称"
+            />
+          </el-form-item>
+          <el-form-item label="API Base URL" prop="options.baseURL">
+            <el-input
+              v-model="settings.providers['openai-compatible'].options.baseURL"
+              placeholder="请输入 API Base URL"
+            />
+          </el-form-item>
+          <el-form-item label="API Key" prop="options.apiKey">
+            <el-input
+              v-model="settings.providers['openai-compatible'].options.apiKey"
+              placeholder="请输入 API Key"
+              show-password
+            >
+              <template #append>
+                <el-button @click="queryModels('openai-compatible')"
+                  >测试</el-button
+                >
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="选择模型" prop="defaultModel">
+            <el-select
+              v-model="settings.providers['openai-compatible'].defaultModel"
+              placeholder="请选择模型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="model in customAvailableModels"
+                :key="model.id"
+                :label="model.name"
+                :value="model.id"
+              >
+                <span>{{ model.id }}</span>
+                <span
+                  v-if="model.owned_by"
+                  style="float: right; color: #8492a6; font-size: 13px"
+                >
+                  {{ model.owned_by }}
+                </span>
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </el-main>
+  </el-container>
+</template>
 
 <style scoped>
+.settings-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .settings-header {
   display: flex;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .settings-main {
+  flex: 1;
   padding: 20px;
+  overflow-y: auto;
 }
 
 .provider-card {
