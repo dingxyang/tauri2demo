@@ -2,7 +2,12 @@
   <div class="default-layout">
     <!-- 主内容区域 -->
     <main class="main-content">
-      <router-view />
+      <router-view v-slot="{ Component, route }">
+        <keep-alive>
+          <component :is="Component" v-if="route.meta.keepAlive" :key="route.name" />
+        </keep-alive>
+        <component :is="Component" v-if="!route.meta.keepAlive" :key="route.name" />
+      </router-view>
     </main>
     
     <!-- 底部导航栏 -->

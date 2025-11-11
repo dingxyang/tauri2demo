@@ -10,17 +10,20 @@ const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'Home',
-        component: () => import('@/pages/home/index.vue')
+        component: () => import('@/pages/home/index.vue'),
+        meta: { keepAlive: true }
       },
       {
         path: '/dictionary',
         name: 'Dictionary',
-        component: () => import('@/pages/dictionary/index.vue')
+        component: () => import('@/pages/dictionary/index.vue'),
+        meta: { keepAlive: true }
       },
       {
         path: '/settings',
         name: 'Settings',
-        component: () => import('@/pages/settings/index.vue')
+        component: () => import('@/pages/settings/index.vue'),
+        meta: { keepAlive: true }
       }
     ]
   },
@@ -28,7 +31,8 @@ const routes: RouteRecordRaw[] = [
     path: '/detail/:id?',
     name: 'Detail',
     component: () => import('@/pages/home/DetailPage.vue'),
-    props: true
+    props: true,
+    meta: { keepAlive: false }
   },
   // 系统设置页面
   // {

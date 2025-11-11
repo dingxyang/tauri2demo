@@ -30,6 +30,11 @@ import {
   clearProviderCache,
 } from "@/utils/localStorage";
 
+// 定义组件名称，用于keep-alive
+defineOptions({
+  name: 'Settings'
+});
+
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
 const doubaoFormRef = ref<InstanceType<typeof ElForm>>();
 const deepseekFormRef = ref<InstanceType<typeof ElForm>>();
@@ -60,7 +65,6 @@ const getAvailableModels = (providerId: string) => {
   const models = [];
   Object.keys(providerModels).forEach((key) => {
     const model = providerModels[key];
-    console.log("model", model);
     models.push({
       id: key,
       name: key,
@@ -244,6 +248,7 @@ onMounted(() => {
     }
   }
 });
+
 </script>
 <template>
   <el-container class="settings-container">
