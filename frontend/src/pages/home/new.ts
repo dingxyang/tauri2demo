@@ -9,7 +9,7 @@ const NEW_202511: ListItem[] = [
       description:
         "三是以贸易、投资、创新、人文的协同驱动机制，构建韧性更强、利益共享的中拉命运共同体。 2024年，中拉贸易额达5184.7亿美元，创历史新高；中国投资存量超...",
       url: "https://export.shobserver.com/baijiahao/html/1015072.html?sdkver=7d05c2f1",
-      publishTime: "2024-11-09",
+      publishTime: "2025-11-09",
     },
     
     {
@@ -18,7 +18,7 @@ const NEW_202511: ListItem[] = [
       description:
         "中国交建是我国的基建出海龙头之一。近几年来，中国交建拿下的类似海外业务数量不少。2023年，该集团境外新签订单3197.46亿元， ...",
       url: "https://cj.sina.com.cn/articles/view/1733360754/6750fc7202001e6u0",
-      publishTime: "2024-11-04",
+      publishTime: "2025-11-04",
     },
     {
       id: 1,
@@ -26,27 +26,19 @@ const NEW_202511: ListItem[] = [
       description:
         "巴拿马官员：中企承建的运河第四大桥让巴拿马人倍感自豪 ... 由中国交建和中国港湾联营体承建的巴拿马运河第四大桥东主塔承台首层混凝土11月1日正式开始浇筑，...",
       url: "https://news.qq.com/rain/a/20251102A03SAY00",
-      publishTime: "2024-11-02",
+      publishTime: "2025-11-02",
     },
 ]
 
 const NEW_202510: ListItem[] = [
     {
-        id: 2,
+        id: 1,
         title: "拉美或成能源投资新中心",
         description:
           "近期，科技巨头正纷纷涌入拉美地区布局新项目以支撑人工智能(AI)产业扩张，该地区正迅速成为全球数据中心建设的核心枢纽，并出现巨大的能源需求。",
         url: "https://mbd.baidu.com/newspage/data/landingsuper?rs=2840347119&ruk=2mtK75Ab0widUGHr6-6B1g&urlext=%7B%22cuid%22%3A%22_uSWigu7Sa_ePSuw0iSxujajv80Havu1gi2raguav8l1uSixgaS9ajfeWP5gt3Row1EmA%22%7D&isBdboxFrom=1&pageType=1&sid_for_share=184103_4&context=%7B%22nid%22%3A%22news_9819054760675693359%22,%22sourceFrom%22%3A%22other%22%7D",
         publishTime: "2025-10-14",
-      },
-      {
-        id: 1,
-        title: "中美在马来西亚吉隆坡举行经贸磋商",
-        description:
-          "当地时间10月25日至26日，中美经贸中方牵头人、国务院副总理何立峰与美方牵头人、美国财政部长贝森特和贸易代表格里尔在马来西亚吉隆坡举行中美经贸 ...",
-        url: "https://www.gov.cn/yaowen/liebiao/202510/content_7045727.htm",
-        publishTime: "2024-10-26",
-      },
+      }
 ];
 
 const NEW_202508: ListItem[] = [
