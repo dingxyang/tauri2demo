@@ -32,6 +32,8 @@ console.log(safeAreaTop.value, safeAreaBottom.value)
   background-color: #f5f5f5;
   /* 保留顶部安全区 */
   padding-top: var(--safe-area-inset-top);
+  box-sizing: border-box; /* padding 计入高度内，不增加总高度 */
+  overflow: hidden; /* 防止整个布局滚动 */
 }
 
 .main-content {
