@@ -47,7 +47,7 @@
   box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
 
   /* 适配底部安全区 */
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom));
 }
 
 .nav-item {
@@ -89,11 +89,11 @@
 /* 移动端适配 */
 @media (max-width: 768px) {
   .bottom-nav {
-    padding: 0.25rem 0;
+    padding-top: 0.25rem;
   }
   
   .nav-item {
-    padding: 0.25rem;
+    padding-top: 0.25rem;
   }
   
   .nav-icon {
