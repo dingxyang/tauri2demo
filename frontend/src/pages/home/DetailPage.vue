@@ -338,13 +338,13 @@ async function openInBrowser(event?: Event) {
 </script>
 
 <template>
-  <div class="detail-page">
-    <header class="header">
+  <el-container class="detail-page">
+    <el-header class="detail-header">
       <button class="back-button" @click="goBack">← 返回</button>
-      <h1>文章详情</h1>
-    </header>
+      <div class="page-title">文章详情</div>
+    </el-header>
 
-    <div v-if="selectedItem" class="detail-content">
+    <el-main v-if="selectedItem" class="detail-content main-content">
       <div class="article-header">
         <h2>{{ selectedItem.title }}</h2>
         <div class="article-meta">
@@ -405,36 +405,36 @@ async function openInBrowser(event?: Event) {
           </div>
         </template>
       </div>
-    </div>
-    <div v-else class="no-data">
-      <p>未找到文章信息</p>
-    </div>
-  </div>
+    </el-main>
+    <el-main v-else class="main-content">
+      <div class="no-data">
+        <p>未找到文章信息</p>
+      </div>
+    </el-main>
+  </el-container>
 </template>
 
 <style scoped>
 .detail-page {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #f5f5f5;
+  overflow: hidden;
 }
 
-.header {
-  background-color: #007aff;
-  color: white;
-  padding: 1rem;
+.detail-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+  padding: 20px 20px 0 20px;
+  z-index: 10;
 }
 
 .back-button {
   background: none;
   border: none;
-  color: white;
   font-size: 1rem;
   cursor: pointer;
   padding: 0.5rem;
@@ -443,24 +443,48 @@ async function openInBrowser(event?: Event) {
 }
 
 .back-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
-.header h1 {
+.page-title {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
 }
 
-.detail-content {
+.main-content {
   flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* 自定义滚动条样式 */
+.main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.detail-content {
   display: flex;
   flex-direction: column;
-  margin: 1rem;
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  height: 100%;
 }
 
 .article-header {
@@ -665,8 +689,7 @@ async function openInBrowser(event?: Event) {
   font-size: 0.95rem;
 }
 
-.no-url,
-.no-data {
+.no-url {
   text-align: center;
   color: #999;
   padding: 2rem;
@@ -676,24 +699,45 @@ async function openInBrowser(event?: Event) {
   height: 100%;
 }
 
-.no-url p,
+.no-url p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 12px;
+  padding: 3rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  text-align: center;
+  color: #999;
+}
+
 .no-data p {
   margin: 0;
   font-size: 1rem;
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
-  .header {
+@media (max-width: 600px) {
+  .detail-header {
+    padding: 12px 16px 0 16px;
+  }
+
+  .page-title {
+    font-size: 16px;
+  }
+
+  .main-content {
     padding: 0.75rem;
   }
 
-  .header h1 {
-    font-size: 1.25rem;
-  }
-
   .detail-content {
-    margin: 0.5rem;
+    border-radius: 8px;
   }
 
   .article-header {
