@@ -590,7 +590,7 @@ onMounted(() => {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .settings-header {
     padding: 12px 16px 0 16px;
   }

@@ -1,8 +1,8 @@
 <!-- 字典页 -->
 <template>
-  <div class="dictionary-container" @click="handleContainerClick">
+  <el-container class="dictionary-container" @click="handleContainerClick">
     <!-- 头部区域 -->
-    <div class="dictionary-header">
+    <el-header class="dictionary-header">
       <div class="page-title">翻译助手</div>
       <div class="header-controls">
         <ModelSelector 
@@ -12,7 +12,7 @@
         />
         <el-icon @click="goToSettings"><Setting /></el-icon>
       </div>
-    </div>
+    </el-header>
     
     <!-- 输入区域（固定） -->
     <div class="input-section">
@@ -57,7 +57,7 @@
       @close="textSelection.hidePopup"
       @translate="handlePopupTranslate"
     />
-  </div>
+  </el-container>
 </template>
 
 <script setup lang="ts">
@@ -497,7 +497,7 @@ const aiChat = async (prompt: RequestType) => {
 /* 移动端适配 */
 @media (max-width: 600px) {
   .dictionary-header {
-    padding: 12px 16px;
+    padding: 12px 16px 0px 16px;
     flex-direction: row;
     gap: 8px;
   }

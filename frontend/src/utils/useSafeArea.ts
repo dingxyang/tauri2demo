@@ -23,6 +23,13 @@ export function useSafeArea() {
       }
     }
 
+    // ⚠️ 安卓顶部刘海补偿逻辑，如果 top 仍为 0，则设置一个经验值（比如 24px ~ 32px）
+    const ua = navigator.userAgent.toLowerCase()
+    const isAndroid = ua.includes('android')
+    if (isAndroid && safeAreaTop.value === 0) {
+      safeAreaTop.value = 10 
+    }
+
     // 同步到 CSS 变量
     document.documentElement.style.setProperty('--safe-area-inset-top', `${safeAreaTop.value}px`)
     document.documentElement.style.setProperty('--safe-area-inset-bottom', `${safeAreaBottom.value}px`)
