@@ -3,8 +3,18 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import type { ListItem } from "../../types";
 import { NEWS_LIST } from "./new";
+import { useScrollRestoration } from "@/utils/useScrollRestoration";
+
+// 定义组件名称，用于keep-alive
+defineOptions({
+  name: 'Home'
+});
 
 const router = useRouter();
+
+// 保存滚动位置
+const mainContentRef = ref<HTMLElement | null>(null);
+useScrollRestoration({ selector: '.el-main' });
 
 // 文章列表数据
 // 加入月份维度，数据结构按月份分组
@@ -12,10 +22,6 @@ const listItemsByMonth = ref<Record<string, ListItem[]>>(NEWS_LIST);
 
 const activeNames = ref<string[]>(['2025-11', '2025-10', '2025-08', '2025-06', '2025-04', '2024-12', '2024-09']);
 
-const handleChange = (val: string[]) => {
-  activeNames.value = val;
-  console.log(activeNames.value); 
-}
 // 切换到详情页
 function goToDetail(item: ListItem) {
   router.push({
@@ -29,6 +35,8 @@ function goToDetail(item: ListItem) {
     }
   });
 }
+
+
 </script>
 
 <template>
@@ -37,10 +45,10 @@ function goToDetail(item: ListItem) {
       <div class="page-title">行业动态</div>
     </el-header>
     
-    <el-main class="main-content">
+    <el-main class="main-content" ref="mainContentRef">
       <div class="list-container">
         <div v-for="month in Object.keys(listItemsByMonth)" :key="month">
-          <el-collapse  v-model="activeNames" @change="handleChange">
+          <el-collapse  v-model="activeNames">
             <el-collapse-item :title="month" :name="month">
               <div class="list">
                 <div 

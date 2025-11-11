@@ -78,6 +78,11 @@ import { isMobile } from '@/utils/os';
 import { findWordInPrompt } from "@/utils/handle_word";
 import { aiClientManager } from '@/services/aiClientManager';
 
+// 定义组件名称，用于keep-alive
+defineOptions({
+  name: 'Dictionary'
+});
+
 const router = useRouter();
 const settingsStore = useSettingsStore();
 const userInput = ref('abajo');
@@ -316,6 +321,7 @@ const aiChat = async (prompt: RequestType) => {
     }, 300); // 增加延迟，确保DOM完全更新
   }
 };
+
 </script>
 
 <style scoped>
