@@ -12,6 +12,8 @@ export interface UseTextSelectionOptions {
   maxTextLength?: number;
   /** 自动隐藏延迟（毫秒） */
   autoHideDelay?: number;
+  /** 是否启用文本选择功能的回调函数 */
+  shouldShow?: () => boolean;
 }
 
 export interface TextSelectionInfo {
@@ -67,7 +69,8 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
     containerSelector = '.markdown-result',
     minTextLength = 1,
     maxTextLength = 200,
-    autoHideDelay = 3000
+    autoHideDelay = 3000,
+    shouldShow = () => true
   } = options;
 
   // 响应式状态
@@ -86,6 +89,11 @@ export function useTextSelection(options: UseTextSelectionOptions = {}) {
 
   // 显示弹窗
   const showPopup = (info: TextSelectionInfo) => {
+    // 检查是否允许显示弹窗（例如在翻译过程中禁用）
+    if (!shouldShow()) {
+      return;
+    }
+    
     // 确保有有效的文本和位置信息才显示弹窗
     if (!info.text || !info.rect) {
       hidePopup();

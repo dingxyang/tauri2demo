@@ -84,7 +84,7 @@ function goToDetail(item: ListItem) {
 
 <style scoped>
 .home-page {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -96,13 +96,33 @@ function goToDetail(item: ListItem) {
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  padding: 20px 20px 0 20px;
+  z-index: 10;
 }
 
 .main-content {
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
-  padding-bottom: 80px;
+}
+
+/* 自定义滚动条样式 */
+.main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .list-container {
@@ -152,12 +172,12 @@ function goToDetail(item: ListItem) {
 
 /* 移动端适配 */
 @media (max-width: 768px) {
-  .header {
-    padding: 0.75rem;
+  .home-header {
+    padding: 12px 16px 0 16px;
   }
   
-  .header h1 {
-    font-size: 1.25rem;
+  .page-title {
+    font-size: 16px;
   }
   
   .main-content {
