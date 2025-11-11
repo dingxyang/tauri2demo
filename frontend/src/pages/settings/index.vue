@@ -505,7 +505,7 @@ onMounted(() => {
 
 <style scoped>
 .settings-container {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -517,12 +517,33 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  padding: 20px 20px 0 20px;
+  z-index: 10;
 }
 
 .settings-main {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+}
+
+/* 自定义滚动条样式 */
+.settings-main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-main::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.settings-main::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.settings-main::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .provider-card {
@@ -572,6 +593,14 @@ onMounted(() => {
 
 /* 移动端适配 */
 @media (max-width: 768px) {
+  .settings-header {
+    padding: 12px 16px 0 16px;
+  }
+  
+  .page-title {
+    font-size: 16px;
+  }
+  
   .settings-main {
     padding: 10px;
   }

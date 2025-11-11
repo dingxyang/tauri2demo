@@ -1,7 +1,8 @@
 <!-- 字典页 -->
 <template>
-  <el-container class="dictionary-container" @click="handleContainerClick">
-    <el-header class="dictionary-header">
+  <div class="dictionary-container" @click="handleContainerClick">
+    <!-- 头部区域 -->
+    <div class="dictionary-header">
       <div class="page-title">翻译助手</div>
       <div class="header-controls">
         <ModelSelector 
@@ -11,46 +12,52 @@
         />
         <el-icon @click="goToSettings"><Setting /></el-icon>
       </div>
-    </el-header>
-    <!-- 输入框 -->
-    <el-main class="dictionary-main">
-        <el-input
-          :rows="4"
-          type="textarea"
-          v-model="userInput"
-          placeholder="请输入内容"
-          resize="none"
-        />
-        <div class="button-container">
-          <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译</el-button>
-          <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西语翻译</el-button>
-          <!-- <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button> -->
-          <el-button @click="clearInput" :disabled="isLoading">清空</el-button>
-          <el-button v-if="isLoading" @click="abortRequest" type="danger">终止</el-button>
-        </div>
+    </div>
+    
+    <!-- 输入区域（固定） -->
+    <div class="input-section">
+      <el-input
+        :rows="4"
+        type="textarea"
+        v-model="userInput"
+        placeholder="请输入内容"
+        resize="none"
+      />
+      <div class="button-container">
+        <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译</el-button>
+        <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西语翻译</el-button>
+        <!-- <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button> -->
+        <el-button @click="clearInput" :disabled="isLoading">清空</el-button>
+        <el-button v-if="isLoading" @click="abortRequest" type="danger">终止</el-button>
+      </div>
+    </div>
+    
+    <!-- 结果区域（可滚动） -->
+    <div class="result-section">
       <!-- 加载状态（仅在没有流式内容时显示） -->
       <div v-if="isLoading && !streamingText" class="loading-state">
         <div class="loading-spinner"></div>
         正在会话中...
       </div>
+      
       <!-- 使用Markdown渲译结果 -->
       <div
         v-if="markdownResult || (isLoading && streamingText)"
-        :class="['markdown-result', { 'disable-context-menu': isMobile }]"
+        :class="['markdown-result', { 'disable-context-menu': isMobile, 'disable-selection': isLoading }]"
       >
         <div v-html="markdownResult"></div>
       </div>
-      
-      <!-- 文本选择弹窗 -->
-      <TextSelectionPopup
-        :visible="textSelection.isVisible.value"
-        :selected-text="textSelection.selectedText.value"
-        :selection-rect="textSelection.selectionRect.value"
-        @close="textSelection.hidePopup"
-        @translate="handlePopupTranslate"
-      />
-    </el-main>
-  </el-container>
+    </div>
+    
+    <!-- 文本选择弹窗 -->
+    <TextSelectionPopup
+      :visible="textSelection.isVisible.value"
+      :selected-text="textSelection.selectedText.value"
+      :selection-rect="textSelection.selectionRect.value"
+      @close="textSelection.hidePopup"
+      @translate="handlePopupTranslate"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -86,7 +93,8 @@ const textSelection = useTextSelection({
   containerSelector: '.markdown-result',
   minTextLength: 1,
   maxTextLength: 100,
-  autoHideDelay: 5000
+  autoHideDelay: 5000,
+  shouldShow: () => !isLoading.value // 翻译过程中禁用划词功能
 });
 
 const settings = computed(() => settingsStore.settingsState);
@@ -312,7 +320,7 @@ const aiChat = async (prompt: RequestType) => {
 
 <style scoped>
 .dictionary-container {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -324,11 +332,8 @@ const aiChat = async (prompt: RequestType) => {
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-}
-
-.dictionary-main {
-  flex: 1;
-  overflow-y: auto;
+  padding: 20px 20px 0 20px;
+  z-index: 10;
 }
 
 .header-controls {
@@ -341,17 +346,54 @@ const aiChat = async (prompt: RequestType) => {
   margin-right: 8px;
 }
 
+/* 输入区域（固定不滚动） */
+.input-section {
+  flex-shrink: 0;
+  padding: 20px;
+  z-index: 9;
+}
+
 .button-container {
   margin-top: 10px;
-  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 结果区域（可滚动） */
+.result-section {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 20px 20px 20px;
+  background-color: #f5f5f5;
+}
+
+/* 自定义滚动条样式 */
+.result-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.result-section::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.result-section::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.result-section::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .markdown-result {
-  padding: 10px;
+  padding: 20px;
   background-color: #ffffff;
-  border-radius: 5px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   max-width: 100%;
-  overflow: auto; /* 内容超出时显示滚动条 */
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
@@ -429,13 +471,54 @@ const aiChat = async (prompt: RequestType) => {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* 翻译过程中禁用文本选择 */
+.disable-selection {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.disable-selection * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
 /* 移动端适配 */
 @media (max-width: 600px) {
-  .flex-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    align-items: start;
+  .dictionary-header {
+    padding: 12px 16px;
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  .page-title {
+    font-size: 16px;
+  }
+  
+  .input-section {
+    padding: 12px 16px;
+  }
+  
+  .result-section {
+    padding: 12px 16px;
+  }
+  
+  .markdown-result {
+    padding: 12px;
+  }
+  
+  .button-container {
+    gap: 6px;
+  }
+  
+  .button-container .el-button {
+    font-size: 13px;
+    padding: 8px 12px;
   }
 }
 </style>
