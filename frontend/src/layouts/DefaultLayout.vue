@@ -20,11 +20,13 @@ import BottomNav from './BottomNav.vue'
   display: flex;
   flex-direction: column;
   background-color: #f5f5f5;
+  /* 保留顶部安全区 */
+  padding-top: env(safe-area-inset-top);
 }
 
 .main-content {
   flex: 1;
-  overflow-y: auto;
-  padding-bottom: 80px; /* 为底部导航栏留出空间 */
+  overflow: hidden;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* 为底部导航栏+安全区留空间 */
 }
 </style>

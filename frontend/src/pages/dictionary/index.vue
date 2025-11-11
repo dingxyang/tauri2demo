@@ -1,8 +1,8 @@
 <!-- 字典页 -->
 <template>
   <el-container class="dictionary-container" @click="handleContainerClick">
-    <el-header class="dictionary-header flex-header">
-      <h2>翻译助手</h2>
+    <el-header class="dictionary-header">
+      <div class="page-title">翻译助手</div>
       <div class="header-controls">
         <ModelSelector 
           v-model="selectedModel"
@@ -311,11 +311,24 @@ const aiChat = async (prompt: RequestType) => {
 </script>
 
 <style scoped>
+.dictionary-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .dictionary-header {
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.dictionary-main {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .header-controls {
@@ -417,22 +430,12 @@ const aiChat = async (prompt: RequestType) => {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
-  .dictionary-header {
-    padding: 0 10px;
+@media (max-width: 600px) {
+  .flex-header {
     flex-direction: column;
-    gap: 10px;
     align-items: stretch;
-  }
-  
-  .header-controls {
-    justify-content: space-between;
-    width: 100%;
-  }
-  
-  .model-selector-header {
-    flex: 1;
-    margin-right: 0;
+    gap: 10px;
+    align-items: start;
   }
 }
 </style>
