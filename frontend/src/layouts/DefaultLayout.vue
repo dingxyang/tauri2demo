@@ -1,3 +1,12 @@
+
+<script setup lang="ts">
+import BottomNav from './BottomNav.vue'
+import { useSafeArea } from '@/utils/useSafeArea'
+const { safeAreaTop, safeAreaBottom } = useSafeArea()
+console.log(safeAreaTop.value, safeAreaBottom.value)
+
+</script>
+
 <template>
   <div class="default-layout">
     <!-- 主内容区域 -->
@@ -15,10 +24,6 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import BottomNav from './BottomNav.vue'
-</script>
-
 <style scoped>
 .default-layout {
   height: 100vh;
@@ -26,12 +31,12 @@ import BottomNav from './BottomNav.vue'
   flex-direction: column;
   background-color: #f5f5f5;
   /* 保留顶部安全区 */
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--safe-area-inset-top);
 }
 
 .main-content {
   flex: 1;
   overflow: hidden;
-  padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* 为底部导航栏+安全区留空间 */
+  padding-bottom: calc(80px + var(--safe-area-inset-bottom)); /* 为底部导航栏+安全区留空间 */
 }
 </style>
