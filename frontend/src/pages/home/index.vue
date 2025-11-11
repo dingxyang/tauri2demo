@@ -158,7 +158,7 @@ function goToDetail(item: ListItem) {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .home-header {
     padding: 12px 16px 0 16px;
   }
