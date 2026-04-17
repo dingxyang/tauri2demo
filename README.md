@@ -2,9 +2,34 @@
 
 ## 开发环境要求
 
+### Rust
+
+Tauri 以 Rust 构建，必须安装 Rust 工具链。安装后请重启终端使更改生效。
+
+#### Linux / macOS
+
+通过 `rustup` 安装：
+
+```bash
+curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+```
+
+#### Windows
+
+有两种安装方式：
+
+1. 前往 [https://www.rust-lang.org/zh-CN/tools/install](https://www.rust-lang.org/zh-CN/tools/install) 下载 `rustup` 安装程序
+2. 或使用 `winget` 安装：
+
+   ```powershell
+   winget install --id Rustlang.Rustup
+   ```
+
+> **注意**: 安装时请选择 **MSVC** 工具链（如 `x86_64-pc-windows-msvc`），而非 MinGW。
+> 如已安装 Rust，可通过 `rustup default stable-msvc` 确认工具链正确。
+
 ### 桌面端开发
 - Node.js 18+
-- Rust 1.70+
 - pnpm
 
 ### 移动端开发
@@ -14,10 +39,21 @@
 - Android SDK (API 21+)
 - Java Development Kit (JDK) 11+
 
+安装 Rust 后还需添加 Android 编译目标：
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+```
+
 #### iOS
-- macOS
-- Xcode 14+
-- iOS SDK 13.0+
+
+> 仅 macOS 支持，需安装完整 Xcode（非仅命令行工具）。
+
+安装 Rust 后还需添加 iOS 编译目标：
+
+```bash
+rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
+```
 
 ## 安装依赖
 
