@@ -18,9 +18,18 @@
       <span class="nav-text">字典</span>
     </router-link>
     
-    <router-link 
+    <router-link
+      to="/speech-eval"
+      class="nav-item"
+      :class="{ active: $route.name === 'SpeechEval' }"
+    >
+      <div class="nav-icon">🎤</div>
+      <span class="nav-text">评测</span>
+    </router-link>
+
+    <router-link
       to="/settings"
-      class="nav-item" 
+      class="nav-item"
       :class="{ active: $route.name === 'About' }"
     >
       <div class="nav-icon">⚙️</div>

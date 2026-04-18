@@ -24,6 +24,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Settings',
         component: () => import('@/pages/settings/index.vue'),
         meta: { keepAlive: true }
+      },
+      {
+        path: '/speech-eval',
+        name: 'SpeechEval',
+        component: () => import('@/pages/speech-eval/index.vue'),
+        meta: { keepAlive: true }
       }
     ]
   },
