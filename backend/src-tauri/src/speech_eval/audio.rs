@@ -11,6 +11,11 @@ pub struct RecordingState {
     pub stream: Arc<Mutex<Option<Stream>>>,
 }
 
+// cpal::Stream 不是 Send/Sync，但我们通过 Mutex 保护访问，
+// 且 Tauri State 要求 Send + Sync，因此手动实现。
+unsafe impl Send for RecordingState {}
+unsafe impl Sync for RecordingState {}
+
 impl RecordingState {
     pub fn new() -> Self {
         Self {
