@@ -21,14 +21,22 @@ pub async fn evaluate(
 
     // 1. 生成鉴权 URL 并连接
     let url = build_auth_url(host, path, &config.api_key, &config.api_secret);
+    let url_preview = if url.len() > 100 {
+        format!("{}...{}", &url[..60], &url[url.len()-20..])
+    } else {
+        url.clone()
+    };
+    println!("[speech-eval] connecting to WebSocket: {}", url_preview);
     let (ws_stream, _) = connect_async(&url)
         .await
         .map_err(|e| format!("WebSocket connect failed: {}", e))?;
+    println!("[speech-eval] WebSocket connected");
     let (mut write, mut read) = ws_stream.split();
 
     // 2. 将音频分帧
     let frames: Vec<&[u8]> = mp3_data.chunks(FRAME_SIZE).collect();
     let total_frames = frames.len();
+    println!("[speech-eval] sending {} frames", total_frames);
 
     for (i, frame) in frames.iter().enumerate() {
         let is_first = i == 0;
@@ -84,6 +92,7 @@ pub async fn evaluate(
             tokio::time::sleep(std::time::Duration::from_millis(40)).await;
         }
     }
+    println!("[speech-eval] all frames sent, waiting for response...");
 
     // 3. 接收响应，等待最终结果
     let mut final_result: Option<EvalResult> = None;
@@ -92,6 +101,7 @@ pub async fn evaluate(
         let msg = msg.map_err(|e| format!("receive error: {}", e))?;
         match msg {
             Message::Text(text) => {
+                println!("[speech-eval] received response: {}...", &text[..text.len().min(200)]);
                 let response: XfResponse = serde_json::from_str(&text)
                     .map_err(|e| format!("parse response error: {}: {}", e, text))?;
 

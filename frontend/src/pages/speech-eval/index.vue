@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { ElSelect, ElOption, ElInput, ElMessage } from 'element-plus'
+import { ElSelect, ElOption, ElInput, ElMessage, ElButton } from 'element-plus'
 import RecordButton from './components/RecordButton.vue'
 import EvalResult from './components/EvalResult.vue'
 
@@ -19,7 +19,7 @@ interface EvalResultData {
 
 const lang = ref('sp')
 const category = ref('sent')
-const refText = ref('Hola, bienvenido a España.')
+const refText = ref('La felicidad está en el gusto, y no en las cosas. Entonces está uno feliz cuando posee lo que ama, y no cuando tiene lo que es amable para los otros.')
 const recording = ref(false)
 const loading = ref(false)
 const evalResult = ref<EvalResultData | null>(null)
@@ -79,6 +79,28 @@ async function handleStop() {
     loading.value = false
   }
 }
+
+async function handleTestMp3() {
+  loading.value = true
+  errorMsg.value = ''
+  evalResult.value = null
+
+  try {
+    const result = await invoke<EvalResultData>('evaluate_mp3_file', {
+      lang: lang.value,
+      category: category.value,
+      refText: refText.value,
+      filePath: 'speakweb.mp3',
+    })
+    evalResult.value = result
+    ElMessage.success('测试评测完成')
+  } catch (e: any) {
+    errorMsg.value = e.toString()
+    ElMessage.error('测试评测失败: ' + e)
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -134,6 +156,18 @@ async function handleStop() {
         @start="handleStart"
         @stop="handleStop"
       />
+
+      <!-- 测试按钮：直接用 MP3 文件评测 -->
+      <div class="test-section">
+        <el-button
+          type="warning"
+          :loading="loading"
+          :disabled="recording"
+          @click="handleTestMp3"
+        >
+          测试 MP3 评测
+        </el-button>
+      </div>
 
       <!-- 错误信息 -->
       <div v-if="errorMsg" class="error-msg">
@@ -204,6 +238,11 @@ async function handleStop() {
   padding: 8px;
   background: #fef0f0;
   border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.test-section {
+  text-align: center;
   margin-bottom: 16px;
 }
 </style>
