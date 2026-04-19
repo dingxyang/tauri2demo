@@ -63,28 +63,18 @@ pnpm install
 
 ## 讯飞语音评测配置
 
-语音评测后端现在从环境变量或本地 `.env` 文件读取讯飞凭证，不再使用代码内硬编码。
+复制示例文件为本地配置文件：
 
-可用配置项：
+```bash
+cp backend/src-tauri/.env.example backend/src-tauri/.env
+```
+
+然后编辑 `backend/src-tauri/.env`，填入你的讯飞凭证：
 
 ```bash
 XF_APP_ID=your_app_id
 XF_API_KEY=your_api_key
 XF_API_SECRET=your_api_secret
-```
-
-加载优先级如下：
-
-1. 进程环境变量
-2. 项目根目录 `.env`
-3. 项目根目录 `.env.local`
-4. `backend/src-tauri/.env`
-5. `backend/src-tauri/.env.local`
-
-可以先复制示例文件再填入真实凭证：
-
-```bash
-cp .env.example .env
 ```
 
 ## 开发运行
