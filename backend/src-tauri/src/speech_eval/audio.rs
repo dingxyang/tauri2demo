@@ -178,12 +178,13 @@ pub fn encode_pcm_to_mp3(pcm_data: &[i16]) -> Result<Vec<u8>, String> {
 
     println!("[speech-eval] encoder: encoding {} samples...", pcm_data.len());
     let input = MonoPcm(pcm_data);
-    let mut mp3_out = Vec::new();
+    let mut mp3_out = Vec::with_capacity(mp3lame_encoder::max_required_buffer_size(pcm_data.len()));
 
     encoder.encode_to_vec(input, &mut mp3_out)
         .map_err(|e| format!("encode error: {:?}", e))?;
 
     println!("[speech-eval] encoder: flushing...");
+    mp3_out.reserve(mp3lame_encoder::max_required_buffer_size(0));
     encoder.flush_to_vec::<FlushNoGap>(&mut mp3_out)
         .map_err(|e| format!("flush error: {:?}", e))?;
 
