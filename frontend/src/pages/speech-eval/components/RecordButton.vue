@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, computed } from 'vue'
-
-const props = defineProps<{
+defineProps<{
   recording: boolean
   loading: boolean
 }>()
@@ -11,63 +9,44 @@ const emit = defineEmits<{
   stop: []
 }>()
 
-const duration = ref(0)
-let timer: ReturnType<typeof setInterval> | null = null
-
-const durationText = computed(() => {
-  const mins = Math.floor(duration.value / 60)
-  const secs = duration.value % 60
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-})
-
-function handleClick() {
-  if (props.loading) return
-  if (props.recording) {
-    stopTimer()
+function handleClick(recording: boolean, loading: boolean) {
+  if (loading) return
+  if (recording) {
     emit('stop')
   } else {
-    startTimer()
     emit('start')
   }
 }
-
-function startTimer() {
-  duration.value = 0
-  timer = setInterval(() => {
-    duration.value++
-  }, 1000)
-}
-
-function stopTimer() {
-  if (timer) {
-    clearInterval(timer)
-    timer = null
-  }
-}
-
-onUnmounted(() => {
-  stopTimer()
-})
 </script>
 
 <template>
   <div class="record-wrapper">
     <button
       class="record-btn"
-      :class="{ recording: recording, loading: loading }"
+      :class="{ recording, loading }"
       :disabled="loading"
-      @click="handleClick"
+      @click="handleClick(recording, loading)"
     >
-      <span v-if="loading" class="btn-icon">&#8987;</span>
-      <span v-else-if="recording" class="btn-icon stop-icon">&#9632;</span>
-      <span v-else class="btn-icon mic-icon">&#127908;</span>
+      <!-- Loading spinner -->
+      <svg v-if="loading" class="icon-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+      </svg>
+      <!-- Stop square -->
+      <svg v-else-if="recording" width="24" height="24" viewBox="0 0 24 24" fill="white">
+        <rect x="6" y="6" width="12" height="12" rx="2" />
+      </svg>
+      <!-- Microphone -->
+      <svg v-else width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+        <line x1="12" y1="19" x2="12" y2="23" />
+        <line x1="8" y1="23" x2="16" y2="23" />
+      </svg>
     </button>
-    <div class="record-status">
+    <div class="record-hint">
       <span v-if="loading">评测中...</span>
-      <span v-else-if="recording" class="recording-text">
-        录音中 {{ durationText }}
-      </span>
-      <span v-else class="hint-text">点击开始录音</span>
+      <span v-else-if="recording">点击结束</span>
+      <span v-else>点击跟读</span>
     </div>
   </div>
 </template>
@@ -77,16 +56,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 20px 0;
+  gap: 10px;
+  padding: 24px 0;
 }
 
 .record-btn {
-  width: 72px;
-  height: 72px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  border: 3px solid #409eff;
-  background: white;
+  border: none;
+  background: #67c23a;
+  box-shadow: 0 4px 14px rgba(103, 194, 58, 0.35);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -94,44 +74,32 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
-.record-btn:hover:not(:disabled) {
-  transform: scale(1.05);
+.record-btn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .record-btn.recording {
-  border-color: #f56c6c;
-  background: #fef0f0;
+  background: #f56c6c;
+  box-shadow: 0 4px 14px rgba(245, 108, 108, 0.35);
 }
 
 .record-btn.loading {
-  border-color: #909399;
+  background: #909399;
+  box-shadow: 0 4px 14px rgba(144, 147, 153, 0.25);
   cursor: not-allowed;
-  opacity: 0.7;
 }
 
-.btn-icon {
-  font-size: 28px;
+.record-hint {
+  font-size: 13px;
+  color: #999;
 }
 
-.stop-icon {
-  color: #f56c6c;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.mic-icon {
-  color: #409eff;
-}
-
-.record-status {
-  font-size: 14px;
-  color: #606266;
-}
-
-.recording-text {
-  color: #f56c6c;
-  font-weight: 500;
-}
-
-.hint-text {
-  color: #909399;
+.icon-spin {
+  animation: spin 1s linear infinite;
 }
 </style>

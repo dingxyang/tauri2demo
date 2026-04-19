@@ -24,7 +24,7 @@
       :class="{ active: $route.name === 'SpeechEval' }"
     >
       <div class="nav-icon">🎤</div>
-      <span class="nav-text">评测</span>
+      <span class="nav-text">每日一句</span>
     </router-link>
 
     <router-link

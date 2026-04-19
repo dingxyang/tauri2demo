@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { ElSelect, ElOption, ElInput, ElMessage, ElButton } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import RecordButton from './components/RecordButton.vue'
 import EvalResult from './components/EvalResult.vue'
+import { useDailySentence } from './composables/useDailySentence'
 
 defineOptions({
-  name: 'SpeechEval'
+  name: 'SpeechEval',
 })
 
 interface EvalResultData {
@@ -17,39 +18,15 @@ interface EvalResultData {
   words: { word: string; overall: number; pronunciation: number; read_type: number }[]
 }
 
-const lang = ref('sp')
-const category = ref('sent')
-const refText = ref('La felicidad está en el gusto, y no en las cosas. Entonces está uno feliz cuando posee lo que ama, y no cuando tiene lo que es amable para los otros.')
+const { sentence, shownCount, total } = useDailySentence()
 const recording = ref(false)
 const loading = ref(false)
 const evalResult = ref<EvalResultData | null>(null)
 const errorMsg = ref('')
 
-const languages = [
-  { value: 'sp', label: '西班牙语' },
-  { value: 'en', label: '英语' },
-  { value: 'cn', label: '中文' },
-  { value: 'jp', label: '日语' },
-  { value: 'kr', label: '韩语' },
-  { value: 'fr', label: '法语' },
-  { value: 'de', label: '德语' },
-  { value: 'ru', label: '俄语' },
-]
-
-const categories = [
-  { value: 'word', label: '单词' },
-  { value: 'sent', label: '句子' },
-  { value: 'para', label: '段落' },
-]
-
 async function handleStart() {
   errorMsg.value = ''
   evalResult.value = null
-
-  if (!refText.value.trim()) {
-    ElMessage.warning('请输入参考文本')
-    return
-  }
 
   try {
     await invoke('start_recording')
@@ -67,9 +44,9 @@ async function handleStop() {
 
   try {
     const result = await invoke<EvalResultData>('stop_recording_and_evaluate', {
-      lang: lang.value,
-      category: category.value,
-      refText: refText.value,
+      lang: 'sp',
+      category: 'sent',
+      refText: sentence.value.sentence_original,
     })
     evalResult.value = result
   } catch (e: any) {
@@ -79,77 +56,27 @@ async function handleStop() {
     loading.value = false
   }
 }
-
-async function handleTestMp3() {
-  loading.value = true
-  errorMsg.value = ''
-  evalResult.value = null
-
-  try {
-    const result = await invoke<EvalResultData>('evaluate_mp3_file', {
-      lang: lang.value,
-      category: category.value,
-      refText: refText.value,
-      filePath: 'speakweb.mp3',
-    })
-    evalResult.value = result
-    ElMessage.success('测试评测完成')
-  } catch (e: any) {
-    errorMsg.value = e.toString()
-    ElMessage.error('测试评测失败: ' + e)
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <template>
-  <el-container class="speech-eval-page">
-    <el-header class="page-header">
-      <h2 class="page-title">语音评测</h2>
-    </el-header>
+  <div class="daily-sentence-page">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="page-title">每日一句</div>
+      <div class="page-progress">{{ shownCount }}/{{ total }}</div>
+    </div>
 
-    <el-main class="page-main">
-      <!-- 参数区域 -->
-      <div class="config-section">
-        <div class="config-row">
-          <label class="config-label">语言</label>
-          <el-select v-model="lang" size="default" style="width: 140px">
-            <el-option
-              v-for="item in languages"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </div>
-
-        <div class="config-row">
-          <label class="config-label">类型</label>
-          <el-select v-model="category" size="default" style="width: 140px">
-            <el-option
-              v-for="item in categories"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </div>
-
-        <div class="config-row">
-          <label class="config-label">参考文本</label>
-          <el-input
-            v-model="refText"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入要朗读的文本"
-            :maxlength="4096"
-            show-word-limit
-          />
-        </div>
+    <div class="page-body">
+      <!-- Sentence card -->
+      <div class="sentence-card">
+        <div class="lang-label">ESPAÑOL</div>
+        <div class="sentence-original">{{ sentence.sentence_original }}</div>
+        <div class="divider"></div>
+        <div class="lang-label">中文翻译</div>
+        <div class="sentence-translation">{{ sentence.sentence_translation }}</div>
       </div>
 
-      <!-- 录音按钮 -->
+      <!-- Record button -->
       <RecordButton
         :recording="recording"
         :loading="loading"
@@ -157,78 +84,82 @@ async function handleTestMp3() {
         @stop="handleStop"
       />
 
-      <!-- 测试按钮：直接用 MP3 文件评测 -->
-      <div class="test-section">
-        <el-button
-          type="warning"
-          :loading="loading"
-          :disabled="recording"
-          @click="handleTestMp3"
-        >
-          测试 MP3 评测
-        </el-button>
-      </div>
+      <!-- Error message -->
+      <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
 
-      <!-- 错误信息 -->
-      <div v-if="errorMsg" class="error-msg">
-        {{ errorMsg }}
-      </div>
-
-      <!-- 评测结果 -->
+      <!-- Eval result -->
       <EvalResult :result="evalResult" />
-    </el-main>
-  </el-container>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.speech-eval-page {
+.daily-sentence-page {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: #fafafa;
 }
 
 .page-header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  height: auto;
+  justify-content: space-between;
+  padding: 14px 16px;
   background: white;
   border-bottom: 1px solid #ebeef5;
 }
 
 .page-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 22px;
+  font-weight: 700;
+  color: #333;
 }
 
-.page-main {
+.page-progress {
+  font-size: 13px;
+  color: #999;
+}
+
+.page-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
 }
 
-.config-section {
+.sentence-card {
   background: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.config-row {
-  margin-bottom: 12px;
+.lang-label {
+  font-size: 11px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.config-row:last-child {
-  margin-bottom: 0;
+.sentence-original {
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.6;
 }
 
-.config-label {
-  display: block;
-  font-size: 14px;
-  color: #606266;
-  margin-bottom: 6px;
+.sentence-translation {
+  font-size: 15px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.divider {
+  height: 1px;
+  background: #f0f0f0;
 }
 
 .error-msg {
@@ -238,11 +169,6 @@ async function handleTestMp3() {
   padding: 8px;
   background: #fef0f0;
   border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.test-section {
-  text-align: center;
   margin-bottom: 16px;
 }
 </style>
