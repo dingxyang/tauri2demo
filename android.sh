@@ -182,6 +182,12 @@ export ANDROID_HOME
 export ANDROID_NDK_HOME
 export PATH="${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/tools:${PATH}"
 
+# Limit parallel Cargo jobs to avoid OOM on large Rust dependency trees.
+# Default: half of logical CPUs, minimum 2.
+CPU_COUNT=$(sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
+export CARGO_BUILD_JOBS=$(( CPU_COUNT / 2 < 2 ? 2 : CPU_COUNT / 2 ))
+echo -e "${CYAN}Cargo 并行编译数：${CARGO_BUILD_JOBS}（共 ${CPU_COUNT} 核，如仍 OOM 可手动设置 CARGO_BUILD_JOBS=2）${RESET}"
+
 # ─── Run ──────────────────────────────────────────────────────────────────────
 echo -e "${CYAN}执行：pnpm tauri android ${COMMAND}${RESET}"
 echo ""
