@@ -37,7 +37,7 @@ echo ""
 FAILED=0
 
 # ─── 1. Xcode Command Line Tools (clang) ──────────────────────────────────────
-echo -e "${CYAN}[1/8] Xcode Command Line Tools${RESET}"
+echo -e "${CYAN}[1/9] Xcode Command Line Tools${RESET}"
 if xcode-select -p &>/dev/null && clang --version &>/dev/null; then
   ok "clang 已安装：$(clang --version 2>&1 | head -1)"
 else
@@ -45,7 +45,7 @@ else
 fi
 
 # ─── 2. Java (JDK 17+) ────────────────────────────────────────────────────────
-echo -e "${CYAN}[2/8] Java JDK（17+）${RESET}"
+echo -e "${CYAN}[2/9] Java JDK（17+）${RESET}"
 if command -v java &>/dev/null; then
   JAVA_VER=$(java -version 2>&1 | head -1 | grep -oE '[0-9]+' | head -1)
   if [[ "$JAVA_VER" -ge 17 ]]; then
@@ -58,7 +58,7 @@ else
 fi
 
 # ─── 3. ANDROID_HOME ──────────────────────────────────────────────────────────
-echo -e "${CYAN}[3/8] ANDROID_HOME${RESET}"
+echo -e "${CYAN}[3/9] ANDROID_HOME${RESET}"
 ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 if [[ -n "$ANDROID_HOME" && -d "$ANDROID_HOME" ]]; then
   ok "ANDROID_HOME=$ANDROID_HOME"
@@ -74,7 +74,7 @@ else
 fi
 
 # ─── 4. Android SDK Tools ─────────────────────────────────────────────────────
-echo -e "${CYAN}[4/8] Android SDK 工具（adb、sdkmanager）${RESET}"
+echo -e "${CYAN}[4/9] Android SDK 工具（adb、sdkmanager）${RESET}"
 ADB="${ANDROID_HOME}/platform-tools/adb"
 SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
 
@@ -84,14 +84,16 @@ else
   fail "未找到 adb（路径：$ADB），请在 Android Studio SDK Manager 中安装 platform-tools。"
 fi
 
-if [[ -x "$SDKMANAGER" ]]; then
-  ok "sdkmanager 已找到"
+if [[ -x "${SDKMANAGER}" ]]; then
+  ok "sdkmanager found: ${SDKMANAGER}"
 else
-  warn "未找到 sdkmanager（路径：$SDKMANAGER），建议安装 cmdline-tools（可选）"
+  warn "sdkmanager not found: ${SDKMANAGER}"
+  warn "Install via Android Studio SDK Manager > SDK Tools > Android SDK Command-line Tools"
+  warn "Or run: sdkmanager --install 'cmdline-tools;latest'"
 fi
 
 # ─── 5. NDK ───────────────────────────────────────────────────────────────────
-echo -e "${CYAN}[5/8] Android NDK${RESET}"
+echo -e "${CYAN}[5/9] Android NDK${RESET}"
 NDK_DIR="${ANDROID_HOME}/ndk"
 if [[ -d "$NDK_DIR" ]]; then
   NDK_VER=$(ls "$NDK_DIR" | sort -V | tail -1)
@@ -107,7 +109,7 @@ else
 fi
 
 # ─── 6. Rust Android targets ──────────────────────────────────────────────────
-echo -e "${CYAN}[6/8] Rust Android 编译目标${RESET}"
+echo -e "${CYAN}[6/9] Rust Android 编译目标${RESET}"
 REQUIRED_TARGETS=(
   "aarch64-linux-android"
   "armv7-linux-androideabi"
@@ -139,16 +141,36 @@ else
 fi
 
 # ─── 7. pnpm ──────────────────────────────────────────────────────────────────
-echo -e "${CYAN}[7/8] pnpm${RESET}"
+echo -e "${CYAN}[7/9] pnpm${RESET}"
 if command -v pnpm &>/dev/null; then
   ok "pnpm $(pnpm --version) 已安装"
 else
   fail "未找到 pnpm，请安装：npm install -g pnpm"
 fi
 
-# ─── 8. Device / Emulator check (dev only) ────────────────────────────────────
+# ─── 8. keystore.properties ───────────────────────────────────────────────────
+echo -e "${CYAN}[8/9] keystore.properties${RESET}"
+KEYSTORE_PROPS="$(dirname "$0")/src-tauri/gen/android/keystore.properties"
+if [[ -f "$KEYSTORE_PROPS" ]]; then
+  ok "keystore.properties found: $KEYSTORE_PROPS"
+else
+  if [[ "$COMMAND" == "build" ]]; then
+    fail "keystore.properties not found: $KEYSTORE_PROPS"
+  else
+    warn "keystore.properties not found: $KEYSTORE_PROPS"
+  fi
+  warn "Create the file with the following content:"
+  echo "    storeFile=/path/to/release.keystore"
+  echo "    storePassword=your_store_password"
+  echo "    keyAlias=your_key_alias"
+  echo "    keyPassword=your_key_password"
+  warn "Generate a keystore with:"
+  echo "    keytool -genkeypair -v -keystore release.keystore -alias my-key -keyalg RSA -keysize 2048 -validity 10000"
+fi
+
+# ─── 9. Device / Emulator check (dev only) ────────────────────────────────────
 if [[ "$COMMAND" == "dev" ]]; then
-  echo -e "${CYAN}[8/8] Android 设备或模拟器${RESET}"
+  echo -e "${CYAN}[9/9] Android 设备或模拟器${RESET}"
   if [[ -x "$ADB" ]]; then
     DEVICES=$(${ADB} devices 2>/dev/null | grep -v "^List" | grep -v "^$" | grep "device$" | wc -l | tr -d ' ')
     if [[ "$DEVICES" -gt 0 ]]; then
@@ -160,7 +182,7 @@ if [[ "$COMMAND" == "dev" ]]; then
     fi
   fi
 else
-  echo -e "${CYAN}[8/8] 构建模式，跳过设备检查${RESET}"
+  echo -e "${CYAN}[9/9] 构建模式，跳过设备检查${RESET}"
   ok "构建模式无需连接设备"
 fi
 
