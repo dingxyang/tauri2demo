@@ -155,16 +155,16 @@ function sanitizeArticleHtml(rawHtml: string, finalUrl: string) {
   const baseTag = `<base href="${origin}">`;
   // 自定义样式：优化文章阅读体验
   const customStyle = `<style>
-html, body {
-  background: #ffffff;
-  color: #1a1a1a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+html, body, div, section, article, main {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
 }
 body {
   margin: 0 auto;
   padding: 16px;
   max-width: 900px;
   line-height: 1.7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 img, video {
   max-width: 100%;
@@ -175,6 +175,30 @@ table {
 }
 .rich_media_inner, #js_content {
   font-size: 16px;
+}
+.rich_media,
+.rich_media_inner,
+.rich_media_area_primary,
+.rich_media_area_primary_inner,
+.rich_media_wrp,
+.rich_media_content,
+.weui-msg,
+.wx_root {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  max-width: 900px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+#js_content {
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+}
+#js_content * {
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #1a1a1a !important;
 }
 </style>`;
 
@@ -219,7 +243,9 @@ table {
   // 移除所有 script 标签（安全考虑）
   const withoutScripts = finalHtml.replace(scriptRegex, "");
   // 移除 CSP meta 标签（避免内容安全策略阻止嵌入）
-  return withoutScripts.replace(metaCspRegex, "");
+  const withoutCsp = withoutScripts.replace(metaCspRegex, "");
+  // 微信图片懒加载：将 data-src 转为 src，使图片在无 JS 环境下也能加载
+  return withoutCsp.replace(/<img\b([^>]*?)data-src=["']([^"']+)["']/gi, '<img$1src="$2"');
 }
 
 /**
@@ -239,6 +265,14 @@ async function loadArticle(url: string) {
     const response = await fetch(url, {
       redirect: "follow", // 自动跟随重定向
       credentials: "omit", // 不发送凭证
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        Referer: new URL(url).origin + "/",
+      },
     });
 
     if (!response.ok) {

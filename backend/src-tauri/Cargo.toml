@@ -27,7 +27,7 @@ tauri-plugin-fs = "2"
 cpal = "0.15"
 mp3lame-encoder = "0.2"
 tokio = { version = "1", features = ["full"] }
-tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"

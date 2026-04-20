@@ -20,7 +20,7 @@ useScrollRestoration({ selector: '.el-main' });
 // 加入月份维度，数据结构按月份分组
 const listItemsByMonth = ref<Record<string, ListItem[]>>(NEWS_LIST);
 
-const activeNames = ref<string[]>(['2025-11', '2025-10', '2025-08', '2025-06', '2025-04', '2024-12', '2024-09']);
+const activeNames = ref<string[]>(['2026-04','2026-03','2025-12','2025-11', '2025-10', '2025-08', '2025-06', '2025-04', '2024-12', '2024-09']);
 
 // 切换到详情页
 function goToDetail(item: ListItem) {
