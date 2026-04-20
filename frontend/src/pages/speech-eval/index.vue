@@ -24,10 +24,31 @@ const loading = ref(false)
 const evalResult = ref<EvalResultData | null>(null)
 const errorMsg = ref('')
 
+// TTS
+type PlayMode = 'normal' | 'slow'
+const playingMode = ref<PlayMode | null>(null)
+
+function play(mode: PlayMode) {
+  if (playingMode.value === mode) {
+    speechSynthesis.cancel()
+    playingMode.value = null
+    return
+  }
+  speechSynthesis.cancel()
+  const utter = new SpeechSynthesisUtterance(sentence.value.sentence_original)
+  utter.lang = 'es-ES'
+  utter.rate = mode === 'slow' ? 0.65 : 1.0
+  playingMode.value = mode
+  utter.onend = () => { playingMode.value = null }
+  utter.onerror = () => { playingMode.value = null }
+  speechSynthesis.speak(utter)
+}
+
 async function handleStart() {
+  speechSynthesis.cancel()
+  playingMode.value = null
   errorMsg.value = ''
   evalResult.value = null
-
   try {
     await invoke('start_recording')
     recording.value = true
@@ -41,7 +62,6 @@ async function handleStop() {
   recording.value = false
   loading.value = true
   errorMsg.value = ''
-
   try {
     const result = await invoke<EvalResultData>('stop_recording_and_evaluate', {
       lang: 'sp',
@@ -72,15 +92,41 @@ async function handleStop() {
         <div class="sentence-date">{{ sentence.date.replace('.', ' ') }}</div>
         <div class="sentence-original">{{ sentence.sentence_original }}</div>
         <div class="sentence-translation">{{ sentence.sentence_translation }}</div>
-      </div>
 
-      <!-- Record button -->
-      <RecordButton
-        :recording="recording"
-        :loading="loading"
-        @start="handleStart"
-        @stop="handleStop"
-      />
+        <!-- Action bar -->
+        <div class="action-bar">
+          <button class="action-item" :class="{ active: playingMode === 'normal' }" @click="play('normal')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11,5 6,9 2,9 2,15 6,15 11,19 11,5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+            <span>常速</span>
+          </button>
+
+          <div class="action-divider" />
+
+          <button class="action-item" :class="{ active: playingMode === 'slow' }" @click="play('slow')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11,5 6,9 2,9 2,15 6,15 11,19 11,5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+            <span>慢速</span>
+          </button>
+
+          <div class="action-divider" />
+
+          <button class="action-item follow" :class="{ recording }" @click="recording ? handleStop() : handleStart()" :disabled="loading">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+            <span>{{ loading ? '评测中' : recording ? '停止' : '跟读' }}</span>
+          </button>
+        </div>
+      </div>
 
       <!-- Error message -->
       <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
@@ -154,9 +200,47 @@ async function handleStop() {
   line-height: 1.6;
 }
 
-.divider {
-  height: 1px;
-  background: #f0f0f0;
+/* Action bar */
+.action-bar {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 14px;
+  margin-top: 2px;
+}
+
+.action-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.action-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.action-item.active {
+  color: #e05a4b;
+}
+
+.action-item.follow.recording {
+  color: #e05a4b;
+}
+
+.action-divider {
+  width: 1px;
+  height: 18px;
+  background: #ebebeb;
 }
 
 .error-msg {
@@ -166,6 +250,6 @@ async function handleStop() {
   padding: 8px;
   background: #fef0f0;
   border-radius: 4px;
-  margin-bottom: 16px;
+  margin-top: 12px;
 }
 </style>
