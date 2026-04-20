@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { dailySentences } from '../data/dailySentences'
 import type { DailySentence } from '../data/dailySentences'
 
@@ -15,28 +15,42 @@ function getFallbackKey(): string {
   return `${day}.abr`
 }
 
-export function useDailySentence() {
-  const sentence = computed<DailySentence>(() => {
-    const key = getTodayKey()
-    return (
-      dailySentences.find((s) => s.date === key) ??
-      dailySentences.find((s) => s.date === getFallbackKey()) ??
-      dailySentences[0]
-    )
-  })
+function getTodayIndex(): number {
+  const key = getTodayKey()
+  const idx = dailySentences.findIndex((s) => s.date === key)
+  if (idx >= 0) return idx
+  const fallbackIdx = dailySentences.findIndex((s) => s.date === getFallbackKey())
+  return fallbackIdx >= 0 ? fallbackIdx : 0
+}
 
-  const shownCount = computed<number>(() => {
-    const key = getTodayKey()
-    const idx = dailySentences.findIndex((s) => s.date === key)
-    return idx >= 0 ? idx + 1 : 1
-  })
+export function useDailySentence() {
+  const currentIndex = ref(getTodayIndex())
+
+  const sentence = computed<DailySentence>(() => dailySentences[currentIndex.value])
+
+  const shownCount = computed<number>(() => currentIndex.value + 1)
 
   const total = dailySentences.length
+
+  const canPrev = computed(() => currentIndex.value > 0)
+  const canNext = computed(() => currentIndex.value < total - 1)
+
+  function prev() {
+    if (canPrev.value) currentIndex.value--
+  }
+
+  function next() {
+    if (canNext.value) currentIndex.value++
+  }
 
   return {
     sentence,
     shownCount,
     total,
+    canPrev,
+    canNext,
+    prev,
+    next,
   }
 }
 

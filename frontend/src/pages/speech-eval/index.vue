@@ -17,7 +17,7 @@ interface EvalResultData {
   words: { word: string; overall: number; pronunciation: number; read_type: number }[]
 }
 
-const { sentence, shownCount, total } = useDailySentence()
+const { sentence, shownCount, total, canPrev, canNext, prev, next } = useDailySentence()
 const recording = ref(false)
 const loading = ref(false)
 const evalResult = ref<EvalResultData | null>(null)
@@ -82,7 +82,19 @@ async function handleStop() {
     <!-- Header -->
     <div class="page-header">
       <div class="page-title">每日一句</div>
-      <div class="page-progress">{{ shownCount }}/{{ total }}</div>
+      <div class="page-nav">
+        <button class="nav-btn" :disabled="!canPrev" @click="prev">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span class="page-progress">{{ shownCount }}/{{ total }}</span>
+        <button class="nav-btn" :disabled="!canNext" @click="next">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 6 15 12 9 18" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="page-body">
@@ -173,9 +185,42 @@ async function handleStop() {
   color: #333;
 }
 
+.page-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .page-progress {
-  font-size: 13px;
+  font-size: 12px;
   color: #999;
+  min-width: 36px;
+  text-align: center;
 }
 
 .page-body {
