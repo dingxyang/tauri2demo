@@ -76,6 +76,7 @@ pub struct XfResponse {
     pub payload: Option<XfResponsePayload>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct XfResponseHeader {
     pub code: i32,
@@ -89,6 +90,7 @@ pub struct XfResponsePayload {
     pub result: Option<XfResponseResult>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct XfResponseResult {
     pub text: String,
@@ -98,6 +100,7 @@ pub struct XfResponseResult {
 
 // === 解码后的评测结果（从 base64 text 解码） ===
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct XfEvalRaw {
     pub eof: Option<i32>,
