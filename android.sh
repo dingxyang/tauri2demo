@@ -150,7 +150,7 @@ fi
 
 # ─── 8. keystore.properties ───────────────────────────────────────────────────
 echo -e "${CYAN}[8/9] keystore.properties${RESET}"
-KEYSTORE_PROPS="$(dirname "$0")/src-tauri/gen/android/keystore.properties"
+KEYSTORE_PROPS="$(dirname "$0")/backend/src-tauri/gen/android/keystore.properties"
 if [[ -f "$KEYSTORE_PROPS" ]]; then
   ok "keystore.properties found: $KEYSTORE_PROPS"
 else
@@ -164,23 +164,6 @@ else
   echo "    keytool -genkeypair -v -keystore release.keystore -alias my-key -keyalg RSA -keysize 2048 -validity 10000"
 fi
 
-# ─── 9. Device / Emulator check (dev only) ────────────────────────────────────
-if [[ "$COMMAND" == "dev" ]]; then
-  echo -e "${CYAN}[9/9] Android 设备或模拟器${RESET}"
-  if [[ -x "$ADB" ]]; then
-    DEVICES=$(${ADB} devices 2>/dev/null | grep -v "^List" | grep -v "^$" | grep "device$" | wc -l | tr -d ' ')
-    if [[ "$DEVICES" -gt 0 ]]; then
-      ok "检测到 $DEVICES 台设备："
-      ${ADB} devices | grep "device$" | awk '{print "    "$1}'
-    else
-      warn "未检测到 Android 设备或模拟器。"
-      warn "请启动 AVD 模拟器，或连接开启了 USB 调试的物理设备。"
-    fi
-  fi
-else
-  echo -e "${CYAN}[9/9] 构建模式，跳过设备检查${RESET}"
-  ok "构建模式无需连接设备"
-fi
 
 # ─── Result ───────────────────────────────────────────────────────────────────
 echo ""
