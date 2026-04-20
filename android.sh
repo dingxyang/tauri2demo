@@ -154,11 +154,7 @@ KEYSTORE_PROPS="$(dirname "$0")/src-tauri/gen/android/keystore.properties"
 if [[ -f "$KEYSTORE_PROPS" ]]; then
   ok "keystore.properties found: $KEYSTORE_PROPS"
 else
-  if [[ "$COMMAND" == "build" ]]; then
-    fail "keystore.properties not found: $KEYSTORE_PROPS"
-  else
-    warn "keystore.properties not found: $KEYSTORE_PROPS"
-  fi
+  fail "keystore.properties not found: $KEYSTORE_PROPS"
   warn "Create the file with the following content:"
   echo "    storeFile=/path/to/release.keystore"
   echo "    storePassword=your_store_password"
