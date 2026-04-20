@@ -69,10 +69,8 @@ async function handleStop() {
     <div class="page-body">
       <!-- Sentence card -->
       <div class="sentence-card">
-        <div class="lang-label">ESPAÑOL</div>
+        <div class="sentence-date">{{ sentence.date.replace('.', ' ') }}</div>
         <div class="sentence-original">{{ sentence.sentence_original }}</div>
-        <div class="divider"></div>
-        <div class="lang-label">中文翻译</div>
         <div class="sentence-translation">{{ sentence.sentence_translation }}</div>
       </div>
 
@@ -137,24 +135,23 @@ async function handleStop() {
   gap: 12px;
 }
 
-.lang-label {
-  font-size: 11px;
-  color: #aaa;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.sentence-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e05a4b;
 }
 
 .sentence-original {
   font-size: 18px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 400;
+  color: #1a1a1a;
   line-height: 1.6;
 }
 
 .sentence-translation {
-  font-size: 15px;
-  color: #666;
-  line-height: 1.5;
+  font-size: 14px;
+  color: #999;
+  line-height: 1.6;
 }
 
 .divider {

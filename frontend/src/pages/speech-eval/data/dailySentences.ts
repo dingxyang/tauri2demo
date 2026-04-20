@@ -155,4 +155,9 @@ export const dailySentences: DailySentence[] = [
     sentence_original: 'El proyecto entra en una etapa crítica.',
     sentence_translation: '项目进入关键阶段。',
   },
+  {
+    date: '31.abr',
+    sentence_original: 'Hemos superado todos los obstáculos del mes.',
+    sentence_translation: '我们克服了这个月的所有困难。',
+  },
 ]

@@ -1722,7 +1722,7 @@ cd /Users/dxy/Documents/Code/github.com/snail0109/tauri2demo && pnpm --filter sp
 ```
 
 Open `http://localhost:31420` — verify:
-1. Bottom nav shows 4 tabs: 行业动态, 字典, 每日一句, 设置
+1. Bottom nav shows 4 tabs: 行业动态, 翻译, 每日一句, 设置
 2. Clicking "每日一句" navigates to the daily sentence page
 3. The sentence card displays with Spanish text and Chinese translation
 4. "正常语速" and "慢速播放" buttons trigger Web Speech API (if no iFlytek config)
