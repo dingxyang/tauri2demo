@@ -27,20 +27,61 @@ const errorMsg = ref('')
 type PlayMode = 'normal' | 'slow'
 const playingMode = ref<PlayMode | null>(null)
 
+function getSpanishVoice(): SpeechSynthesisVoice | null {
+  const voices = speechSynthesis.getVoices()
+  return (
+    voices.find(v => v.lang === 'es-ES') ||
+    voices.find(v => v.lang.startsWith('es')) ||
+    null
+  )
+}
+
 function play(mode: PlayMode) {
+  if (!('speechSynthesis' in window)) {
+    ElMessage.warning('当前环境不支持语音播放')
+    return
+  }
   if (playingMode.value === mode) {
     speechSynthesis.cancel()
     playingMode.value = null
     return
   }
   speechSynthesis.cancel()
-  const utter = new SpeechSynthesisUtterance(sentence.value.sentence_original)
-  utter.lang = 'es-ES'
-  utter.rate = mode === 'slow' ? 0.65 : 1.0
-  playingMode.value = mode
-  utter.onend = () => { playingMode.value = null }
-  utter.onerror = () => { playingMode.value = null }
-  speechSynthesis.speak(utter)
+
+  const doSpeak = () => {
+    const utter = new SpeechSynthesisUtterance(sentence.value.sentence_original)
+    const voice = getSpanishVoice()
+    if (voice) {
+      utter.voice = voice
+      utter.lang = voice.lang
+    } else {
+      utter.lang = 'es-ES'
+    }
+    utter.rate = mode === 'slow' ? 0.65 : 1.0
+    playingMode.value = mode
+    utter.onend = () => { playingMode.value = null }
+    utter.onerror = (e) => {
+      playingMode.value = null
+      if (e.error !== 'interrupted') {
+        ElMessage.warning('语音播放失败，请确认设备已安装西班牙语 TTS')
+      }
+    }
+    speechSynthesis.speak(utter)
+  }
+
+  // Android WebView voices may not be ready immediately
+  if (speechSynthesis.getVoices().length === 0) {
+    speechSynthesis.onvoiceschanged = () => {
+      speechSynthesis.onvoiceschanged = null
+      doSpeak()
+    }
+    // Fallback: if onvoiceschanged never fires, try anyway after 300ms
+    setTimeout(() => {
+      if (playingMode.value !== mode) doSpeak()
+    }, 300)
+  } else {
+    doSpeak()
+  }
 }
 
 async function handleStart() {
