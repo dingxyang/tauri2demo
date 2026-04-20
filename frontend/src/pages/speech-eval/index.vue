@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { ElMessage } from 'element-plus'
-import RecordButton from './components/RecordButton.vue'
 import EvalResult from './components/EvalResult.vue'
 import { useDailySentence } from './composables/useDailySentence'
 
@@ -131,6 +130,20 @@ async function handleStop() {
       <!-- Error message -->
       <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
 
+      <!-- Word analysis -->
+      <div v-if="sentence.analysis && sentence.analysis.length" class="analysis-card">
+        <div class="analysis-title">解析：</div>
+        <div v-for="item in sentence.analysis" :key="item.word" class="analysis-item">
+          <div class="analysis-word-line">
+            <span class="analysis-word">{{ item.word }}</span>
+            <span class="analysis-pos">{{ item.pos }}</span>
+            <span class="analysis-def">{{ item.definition }}</span>
+          </div>
+          <div class="analysis-example">{{ item.example }}</div>
+          <div class="analysis-example-trans">{{ item.example_translation }}</div>
+        </div>
+      </div>
+
       <!-- Eval result -->
       <EvalResult :result="evalResult" />
     </div>
@@ -251,5 +264,65 @@ async function handleStop() {
   background: #fef0f0;
   border-radius: 4px;
   margin-top: 12px;
+}
+
+/* Analysis card */
+.analysis-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.analysis-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.analysis-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analysis-word-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.analysis-word {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.analysis-pos {
+  font-size: 12px;
+  color: #999;
+}
+
+.analysis-def {
+  font-size: 14px;
+  color: #555;
+}
+
+.analysis-example {
+  font-size: 14px;
+  color: #e05a4b;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.analysis-example-trans {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.5;
 }
 </style>
