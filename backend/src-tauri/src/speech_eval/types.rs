@@ -137,13 +137,34 @@ pub struct XfConfig {
 }
 
 impl XfConfig {
-    /// 优先读取进程环境变量；未设置时回退到本地 .env 配置文件。
+    /// 优先读取进程环境变量；其次读本地 .env 文件；
+    /// 最后使用编译时烘焙的值（移动端 .env 不在设备上时的兜底）。
     pub fn from_env() -> Result<Self, String> {
         let file_vars = load_env_file_candidates();
-        let missing: Vec<&str> = [XF_APP_ID_ENV, XF_API_KEY_ENV, XF_API_SECRET_ENV]
-            .into_iter()
-            .filter(|key| resolve_config_value(key, &file_vars).is_none())
-            .collect();
+
+        // Compile-time constants baked in by build.rs (option_env! requires string literals)
+        let ct_app_id: Option<&str> = option_env!("XF_APP_ID");
+        let ct_api_key: Option<&str> = option_env!("XF_API_KEY");
+        let ct_api_secret: Option<&str> = option_env!("XF_API_SECRET");
+
+        let resolve_with_ct = |key: &str, ct: Option<&str>| -> Option<String> {
+            resolve_config_value(key, &file_vars)
+                .or_else(|| ct.map(|s| s.to_string()))
+        };
+
+        let app_id = resolve_with_ct(XF_APP_ID_ENV, ct_app_id);
+        let api_key = resolve_with_ct(XF_API_KEY_ENV, ct_api_key);
+        let api_secret = resolve_with_ct(XF_API_SECRET_ENV, ct_api_secret);
+
+        let missing: Vec<&str> = [
+            (XF_APP_ID_ENV, &app_id),
+            (XF_API_KEY_ENV, &api_key),
+            (XF_API_SECRET_ENV, &api_secret),
+        ]
+        .into_iter()
+        .filter(|(_, v)| v.is_none())
+        .map(|(k, _)| k)
+        .collect();
 
         if !missing.is_empty() {
             return Err(format!(
@@ -154,9 +175,9 @@ impl XfConfig {
         }
 
         Ok(Self {
-            app_id: resolve_config_value(XF_APP_ID_ENV, &file_vars).unwrap_or_default(),
-            api_key: resolve_config_value(XF_API_KEY_ENV, &file_vars).unwrap_or_default(),
-            api_secret: resolve_config_value(XF_API_SECRET_ENV, &file_vars).unwrap_or_default(),
+            app_id: app_id.unwrap(),
+            api_key: api_key.unwrap(),
+            api_secret: api_secret.unwrap(),
         })
     }
 }

@@ -1,4 +1,4 @@
-<!-- 系统设置页面，支持设置 OpenAI proxy url 和 api key -->
+<!-- 系统设置页面 - 两级导航结构 -->
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
 import {
@@ -10,11 +10,9 @@ import {
   ElSelect,
   ElOption,
   ElSwitch,
-  ElCard,
   FormRules,
 } from "element-plus";
 import { useSettingsStore } from "@/stores/settings";
-import { useRouter } from "vue-router";
 import {
   VOLCENGINE_BASE_URL,
   OPENAI_BASE_URL,
@@ -30,10 +28,17 @@ import {
   clearProviderCache,
 } from "@/utils/localStorage";
 
-// 定义组件名称，用于keep-alive
-defineOptions({
-  name: 'Settings'
-});
+defineOptions({ name: 'Settings' });
+
+// 一级导航状态：null = 列表首页
+type Section = null | 'speech-eval' | 'model-services' | 'dictionary'
+const currentSection = ref<Section>(null)
+
+const sectionTitle: Record<Exclude<Section, null>, string> = {
+  'speech-eval': '语音评测配置',
+  'model-services': '模型服务',
+  'dictionary': '词典配置',
+}
 
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
 const doubaoFormRef = ref<InstanceType<typeof ElForm>>();
@@ -54,58 +59,38 @@ const customProviderFormRules = ref<FormRules>({
 });
 
 const settingsStore = useSettingsStore();
-const router = useRouter();
-
 const settings = computed(() => settingsStore.settingsState);
 
-// 获取指定提供商的可用模型
 const getAvailableModels = (providerId: string) => {
   const providerModels = providers[providerId].models;
-  // 对象转数组 'deepseek-v3-250324': models['deepseek-v3-0324'],
-  const models = [];
-  Object.keys(providerModels).forEach((key) => {
-    const model = providerModels[key];
-    models.push({
-      id: key,
-      name: key,
-    });
-  });
-  return models;
+  return Object.keys(providerModels).map((key) => ({ id: key, name: key }));
 };
 
 const customAvailableModels = ref([]);
 const loadingModels = ref(false);
 
-// 防抖保存函数
-let saveTimeout: NodeJS.Timeout | null = null;
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 const autoSave = () => {
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-  }
+  if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
     try {
-      await settingsStore.saveSettings({ providers: settings.value.providers });
-      console.log("设置已自动保存");
+      await settingsStore.saveSettings({
+        providers: settings.value.providers,
+        xfSpeechEval: settings.value.xfSpeechEval,
+      });
     } catch (error) {
       console.error("自动保存失败:", error);
     }
-  }, 500); // 500ms 防抖延迟
+  }, 500);
 };
 
-// 监听设置变化并自动保存
 watch(
-  () => settings.value.providers,
-  () => {
-    autoSave();
-  },
+  () => [settings.value.providers, settings.value.xfSpeechEval],
+  () => { autoSave(); },
   { deep: true }
 );
 
-// 查询可用模型列表
-const queryModels = async (
-  providerId: string,
-  forceRefresh: boolean = false
-) => {
+const queryModels = async (providerId: string, forceRefresh = false) => {
   const providerConfig = settings.value.providers[providerId];
   const baseURL = providerConfig.options.baseURL;
   const apiKey = providerConfig.options.apiKey;
@@ -115,28 +100,20 @@ const queryModels = async (
     return;
   }
 
-  // 如果强制刷新，清除缓存
   if (forceRefresh) {
     clearProviderCache(providerId);
   } else {
-    // 先检查缓存
     const cachedModels = getCachedModels(providerId);
     if (cachedModels) {
       try {
         const modelCache = JSON.parse(cachedModels);
         if (modelCache && !isCacheExpired(modelCache.timestamp)) {
-          // 使用缓存的模型列表
           const models = modelCache.models;
-          customAvailableModels.value = models.sort((a: any, b: any) =>
-            a.id.localeCompare(b.id)
-          );
-          settings.value.providers[providerId].models = models.reduce(
-            (acc: any, model: any) => {
-              acc[model.id] = model;
-              return acc;
-            },
-            {}
-          );
+          customAvailableModels.value = models.sort((a: any, b: any) => a.id.localeCompare(b.id));
+          settings.value.providers[providerId].models = models.reduce((acc: any, model: any) => {
+            acc[model.id] = model;
+            return acc;
+          }, {});
           settings.value.providers[providerId].available = true;
           ElMessage.success(`从缓存加载了 ${models.length} 个可用模型`);
           return;
@@ -147,7 +124,6 @@ const queryModels = async (
     }
   }
 
-  // 缓存不存在或已过期，从API查询
   loadingModels.value = true;
   try {
     const response = await fetch(baseURL + `/models`, {
@@ -157,33 +133,20 @@ const queryModels = async (
         Authorization: `Bearer ${apiKey}`,
       },
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
     const data = await response.json();
     if (data.data && Array.isArray(data.data)) {
-      const models = data.data.sort((a: any, b: any) =>
-        a.id.localeCompare(b.id)
-      );
-
+      const models = data.data.sort((a: any, b: any) => a.id.localeCompare(b.id));
       customAvailableModels.value = models;
-      // 需要把模型存储到 providers 里
-      settings.value.providers[providerId].models = models.reduce(
-        (acc: any, model: any) => {
-          acc[model.id] = model;
-          return acc;
-        },
-        {}
-      );
+      settings.value.providers[providerId].models = models.reduce((acc: any, model: any) => {
+        acc[model.id] = model;
+        return acc;
+      }, {});
       settings.value.providers[providerId].available = true;
       settingsStore.saveSettings({ providers: settings.value.providers });
-
-      // 缓存查询结果
       setCachedModels(providerId, models);
       setCachedTestResult(providerId, true);
-
       ElMessage.success(`成功获取 ${models.length} 个可用模型`);
     } else {
       throw new Error("Invalid response format");
@@ -210,27 +173,18 @@ const testProvider = async (providerId: string) => {
   try {
     const response = await fetch(baseURL + `/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: providerConfig.defaultModel,
         messages: [{ role: "user", content: "Hello, how are you?" }],
       }),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    // 测试成功，更新状态并缓存结果
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     settings.value.providers[providerId].available = true;
     settingsStore.saveSettings({ providers: settings.value.providers });
     setCachedTestResult(providerId, true);
     ElMessage.success("测试成功");
   } catch (error) {
-    // 测试失败，缓存失败结果
     settings.value.providers[providerId].available = false;
     setCachedTestResult(providerId, false);
     console.error(`${providerId} 测试失败:`, error);
@@ -248,367 +202,406 @@ onMounted(() => {
     }
   }
 });
-
 </script>
+
 <template>
-  <el-container class="settings-container">
-    <el-header class="settings-header">
-      <div class="page-title">{{ $t("settings.title") }}</div>
-    </el-header>
-    <el-main class="settings-main">
+  <div class="settings-page">
+    <!-- 顶部标题栏 -->
+    <div class="settings-header">
+      <button v-if="currentSection" class="back-btn" @click="currentSection = null">
+        <svg width="10" height="16" viewBox="0 0 10 16" fill="none">
+          <path d="M8 2L2 8L8 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <span class="header-title">
+        {{ currentSection ? sectionTitle[currentSection] : '设置' }}
+      </span>
+    </div>
+
+    <!-- 一级菜单列表 -->
+    <div v-if="!currentSection" class="settings-body">
+      <div class="menu-group">
+        <button class="menu-item" @click="currentSection = 'speech-eval'">
+          <span class="menu-icon speech-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </span>
+          <span class="menu-label">语音评测配置</span>
+          <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
+            <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="menu-item" @click="currentSection = 'model-services'">
+          <span class="menu-icon model-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+            </svg>
+          </span>
+          <span class="menu-label">模型服务</span>
+          <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
+            <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="menu-group">
+        <button class="menu-item" @click="currentSection = 'dictionary'">
+          <span class="menu-icon dict-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </span>
+          <span class="menu-label">词典配置</span>
+          <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
+            <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 二级页面：语音评测配置 -->
+    <div v-else-if="currentSection === 'speech-eval'" class="settings-body">
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">讯飞开放平台</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label">App ID</label>
+          <el-input
+            v-model="settings.xfSpeechEval.appId"
+            placeholder="请输入 App ID"
+            class="form-input"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">API Key</label>
+          <el-input
+            v-model="settings.xfSpeechEval.apiKey"
+            placeholder="请输入 API Key"
+            show-password
+            class="form-input"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">API Secret</label>
+          <el-input
+            v-model="settings.xfSpeechEval.apiSecret"
+            placeholder="请输入 API Secret"
+            show-password
+            class="form-input"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- 二级页面：模型服务 -->
+    <div v-else-if="currentSection === 'model-services'" class="settings-body">
       <!-- 火山引擎 -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">火山引擎（豆包）</span>
-            <el-switch
-              :style="{
-                '--el-switch-on-color': settings.providers.doubao.available
-                  ? '#13ce66'
-                  : '#ff4949',
-              }"
-              v-model="settings.providers.doubao.enabled"
-            />
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">火山引擎（豆包）</span>
+          <el-switch
+            :style="{ '--el-switch-on-color': settings.providers.doubao.available ? '#13ce66' : '#ff4949' }"
+            v-model="settings.providers.doubao.enabled"
+          />
+        </div>
+        <template v-if="settings.providers.doubao.enabled">
+          <div class="form-row">
+            <label class="form-label">Base URL</label>
+            <el-input v-model="settings.providers.doubao.options.baseURL" :placeholder="VOLCENGINE_BASE_URL" class="form-input" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">API Key</label>
+            <el-input v-model="settings.providers.doubao.options.apiKey" placeholder="请输入 API Key" show-password class="form-input">
+              <template #append><el-button @click="testProvider('doubao')">测试</el-button></template>
+            </el-input>
+          </div>
+          <div class="form-row">
+            <label class="form-label">模型</label>
+            <el-select v-model="settings.providers.doubao.defaultModel" placeholder="请选择模型" style="width:100%">
+              <el-option v-for="model in getAvailableModels('doubao')" :key="model.id" :label="model.name" :value="model.id" />
+            </el-select>
           </div>
         </template>
-        <el-form
-          v-if="settings.providers.doubao.enabled"
-          ref="doubaoFormRef"
-          :rules="providerFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers.doubao"
-          label-width="120px"
-        >
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers.doubao.options.baseURL"
-              :placeholder="VOLCENGINE_BASE_URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers.doubao.options.apiKey"
-              placeholder="请输入火山引擎 API Key"
-              show-password
-            >
-              <template #append>
-                <el-button @click="testProvider('doubao')">测试</el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers.doubao.defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in getAvailableModels('doubao')"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
+      </div>
+
       <!-- DeepSeek -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">DeepSeek</span>
-            <el-switch
-              :style="{
-                '--el-switch-on-color': settings.providers.deepseek.available
-                  ? '#13ce66'
-                  : '#ff4949',
-              }"
-              v-model="settings.providers.deepseek.enabled"
-            />
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">DeepSeek</span>
+          <el-switch
+            :style="{ '--el-switch-on-color': settings.providers.deepseek.available ? '#13ce66' : '#ff4949' }"
+            v-model="settings.providers.deepseek.enabled"
+          />
+        </div>
+        <template v-if="settings.providers.deepseek.enabled">
+          <div class="form-row">
+            <label class="form-label">Base URL</label>
+            <el-input v-model="settings.providers.deepseek.options.baseURL" :placeholder="DEEPSEEK_BASE_URL" class="form-input" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">API Key</label>
+            <el-input v-model="settings.providers.deepseek.options.apiKey" placeholder="请输入 API Key" show-password class="form-input">
+              <template #append><el-button @click="testProvider('deepseek')">测试</el-button></template>
+            </el-input>
+          </div>
+          <div class="form-row">
+            <label class="form-label">模型</label>
+            <el-select v-model="settings.providers.deepseek.defaultModel" placeholder="请选择模型" style="width:100%">
+              <el-option v-for="model in getAvailableModels('deepseek')" :key="model.id" :label="model.name" :value="model.id" />
+            </el-select>
           </div>
         </template>
-        <el-form
-          v-if="settings.providers.deepseek.enabled"
-          ref="deepseekFormRef"
-          :rules="providerFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers.deepseek"
-          label-width="120px"
-        >
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers.deepseek.options.baseURL"
-              :placeholder="DEEPSEEK_BASE_URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers.deepseek.options.apiKey"
-              placeholder="请输入 DeepSeek API Key"
-              show-password
-            >
-              <template #append>
-                <el-button @click="testProvider('deepseek')">测试</el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers.deepseek.defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in getAvailableModels('deepseek')"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
+      </div>
+
       <!-- OpenAI 官方 -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">OpenAI 官方</span>
-            <el-switch
-              :style="{
-                '--el-switch-on-color': settings.providers.openai.available
-                  ? '#13ce66'
-                  : '#ff4949',
-              }"
-              v-model="settings.providers.openai.enabled"
-            />
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">OpenAI 官方</span>
+          <el-switch
+            :style="{ '--el-switch-on-color': settings.providers.openai.available ? '#13ce66' : '#ff4949' }"
+            v-model="settings.providers.openai.enabled"
+          />
+        </div>
+        <template v-if="settings.providers.openai.enabled">
+          <div class="form-row">
+            <label class="form-label">Base URL</label>
+            <el-input v-model="settings.providers.openai.options.baseURL" :placeholder="OPENAI_BASE_URL" class="form-input" />
           </div>
-        </template>
-        <el-form
-          v-if="settings.providers.openai.enabled"
-          ref="openaiFormRef"
-          :rules="providerFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers.openai"
-          label-width="120px"
-        >
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers.openai.options.baseURL"
-              :placeholder="OPENAI_BASE_URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers.openai.options.apiKey"
-              placeholder="请输入 OpenAI API Key"
-              show-password
-            >
-              <template #append>
-                <el-button @click="testProvider('openai')">测试</el-button>
-              </template>
+          <div class="form-row">
+            <label class="form-label">API Key</label>
+            <el-input v-model="settings.providers.openai.options.apiKey" placeholder="请输入 API Key" show-password class="form-input">
+              <template #append><el-button @click="testProvider('openai')">测试</el-button></template>
             </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers.openai.defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in getAvailableModels('openai')"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              />
+          </div>
+          <div class="form-row">
+            <label class="form-label">模型</label>
+            <el-select v-model="settings.providers.openai.defaultModel" placeholder="请选择模型" style="width:100%">
+              <el-option v-for="model in getAvailableModels('openai')" :key="model.id" :label="model.name" :value="model.id" />
             </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-      <!-- 自定义 OpenAI 兼容 -->
-      <el-card class="provider-card" shadow="hover">
-        <template #header>
-          <div class="provider-header">
-            <span class="provider-title">自定义 OpenAI 兼容</span>
-            <el-switch
-              :style="{
-                '--el-switch-on-color': settings.providers['openai-compatible']
-                  .available
-                  ? '#13ce66'
-                  : '#ff4949',
-              }"
-              v-model="settings.providers['openai-compatible'].enabled"
-            />
           </div>
         </template>
-        <el-form
-          v-if="settings.providers['openai-compatible'].enabled"
-          ref="customFormRef"
-          :rules="customProviderFormRules"
-          :label-position="isMobile ? 'top' : 'left'"
-          :model="settings.providers['openai-compatible']"
-          label-width="120px"
-        >
-          <el-form-item label="提供商名称" prop="name">
-            <el-input
-              v-model="settings.providers['openai-compatible'].name"
-              placeholder="请输入自定义提供商名称"
-            />
-          </el-form-item>
-          <el-form-item label="API Base URL" prop="options.baseURL">
-            <el-input
-              v-model="settings.providers['openai-compatible'].options.baseURL"
-              placeholder="请输入 API Base URL"
-            />
-          </el-form-item>
-          <el-form-item label="API Key" prop="options.apiKey">
-            <el-input
-              v-model="settings.providers['openai-compatible'].options.apiKey"
-              placeholder="请输入 API Key"
-              show-password
-            >
-              <template #append>
-                <el-button @click="queryModels('openai-compatible')"
-                  >测试</el-button
-                >
-              </template>
+      </div>
+
+      <!-- 自定义 OpenAI 兼容 -->
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">自定义 OpenAI 兼容</span>
+          <el-switch
+            :style="{ '--el-switch-on-color': settings.providers['openai-compatible'].available ? '#13ce66' : '#ff4949' }"
+            v-model="settings.providers['openai-compatible'].enabled"
+          />
+        </div>
+        <template v-if="settings.providers['openai-compatible'].enabled">
+          <div class="form-row">
+            <label class="form-label">名称</label>
+            <el-input v-model="settings.providers['openai-compatible'].name" placeholder="自定义提供商名称" class="form-input" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">Base URL</label>
+            <el-input v-model="settings.providers['openai-compatible'].options.baseURL" placeholder="API Base URL" class="form-input" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">API Key</label>
+            <el-input v-model="settings.providers['openai-compatible'].options.apiKey" placeholder="请输入 API Key" show-password class="form-input">
+              <template #append><el-button @click="queryModels('openai-compatible')">获取模型</el-button></template>
             </el-input>
-          </el-form-item>
-          <el-form-item label="选择模型" prop="defaultModel">
-            <el-select
-              v-model="settings.providers['openai-compatible'].defaultModel"
-              placeholder="请选择模型"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="model in customAvailableModels"
-                :key="model.id"
-                :label="model.name"
-                :value="model.id"
-              >
+          </div>
+          <div class="form-row">
+            <label class="form-label">模型</label>
+            <el-select v-model="settings.providers['openai-compatible'].defaultModel" placeholder="请选择模型" style="width:100%">
+              <el-option v-for="model in customAvailableModels" :key="model.id" :label="model.id" :value="model.id">
                 <span>{{ model.id }}</span>
-                <span
-                  v-if="model.owned_by"
-                  style="float: right; color: #8492a6; font-size: 13px"
-                >
-                  {{ model.owned_by }}
-                </span>
+                <span v-if="model.owned_by" style="float:right;color:#8492a6;font-size:13px">{{ model.owned_by }}</span>
               </el-option>
             </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-    </el-main>
-  </el-container>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 二级页面：词典配置（占位） -->
+    <div v-else-if="currentSection === 'dictionary'" class="settings-body">
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dcdfe6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        <p>词典配置即将上线</p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.settings-container {
+.settings-page {
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  background: #f5f5f5;
 }
 
+/* 标题栏 */
 .settings-header {
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  border-bottom: 1px solid #ebeef5;
   flex-shrink: 0;
-  padding: 20px 20px 0 20px;
-  z-index: 10;
 }
 
-.settings-main {
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #e05a4b;
+  padding: 0;
+  margin-left: -6px;
+}
+
+.header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* 滚动内容区 */
+.settings-body {
   flex: 1;
-  padding: 20px;
   overflow-y: auto;
+  padding: 16px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* 自定义滚动条样式 */
-.settings-main::-webkit-scrollbar {
-  width: 8px;
-}
-
-.settings-main::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.settings-main::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-.settings-main::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-.provider-card {
-  margin-bottom: 20px;
+/* 一级菜单组 */
+.menu-group {
+  background: #fff;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
-.provider-header {
+.menu-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-weight: 600;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.12s;
 }
 
-.provider-title {
-  font-size: 16px;
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background: #f9f9f9;
+}
+
+.menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.speech-icon { background: #fff1f0; color: #e05a4b; }
+.model-icon  { background: #f0f4ff; color: #5b7cee; }
+.dict-icon   { background: #f0fff4; color: #36b37e; }
+
+.menu-label {
+  flex: 1;
+  font-size: 15px;
   color: #303133;
 }
 
-.el-form {
-  padding: 20px;
-  background: #fafafa;
+.menu-chevron {
+  flex-shrink: 0;
 }
 
-.el-form-item {
-  margin-bottom: 20px;
+/* 二级表单 */
+.form-group {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  padding: 0 16px;
 }
 
-.save-section {
-  text-align: center;
-  margin-top: 30px;
-  padding: 20px;
+.form-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #f5f5f5;
 }
 
-.settings-form {
-  margin: 0 auto;
-  background: white;
-  padding: 2rem 1.5rem 1.5rem 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+.form-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #606266;
 }
 
-.mt-16 {
-  margin-top: 16px;
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
 }
 
-/* 移动端适配 */
-@media (max-width: 600px) {
-  .settings-header {
-    padding: 12px 16px 0 16px;
-  }
-  
-  .page-title {
-    font-size: 16px;
-  }
-  
-  .settings-main {
-    padding: 10px;
-  }
+.form-row:last-child {
+  border-bottom: none;
+}
 
-  .provider-card {
-    margin-bottom: 15px;
-  }
+.form-label {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+  min-width: 72px;
+  flex-shrink: 0;
+}
 
-  .el-form {
-    padding: 15px;
-  }
+.form-input {
+  flex: 1;
+}
+
+/* 占位空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+  color: #c0c4cc;
+  font-size: 14px;
+}
+
+.empty-state p {
+  margin: 0;
 }
 </style>

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { ElMessage } from 'element-plus'
 import EvalResult from './components/EvalResult.vue'
 import { useDailySentence } from './composables/useDailySentence'
+import { useSettingsStore } from '@/stores/settings'
 
 defineOptions({
   name: 'SpeechEval',
@@ -18,6 +19,8 @@ interface EvalResultData {
 }
 
 const { sentence, shownCount, total, canPrev, canNext, prev, next } = useDailySentence()
+const settingsStore = useSettingsStore()
+const xfConfig = computed(() => settingsStore.settingsState.xfSpeechEval)
 const recording = ref(false)
 const loading = ref(false)
 const evalResult = ref<EvalResultData | null>(null)
@@ -104,6 +107,11 @@ function play(mode: PlayMode) {
 }
 
 async function handleStart() {
+  const { appId, apiKey, apiSecret } = xfConfig.value
+  if (!appId || !apiKey || !apiSecret) {
+    ElMessage.warning('请先在设置页面填写讯飞语音评测的 App ID、API Key 和 API Secret')
+    return
+  }
   const nativeTTS = (window as any).NativeTTS
   if (nativeTTS?.stop) nativeTTS.stop()
   if ('speechSynthesis' in window) speechSynthesis.cancel()
@@ -128,6 +136,9 @@ async function handleStop() {
       lang: 'sp',
       category: 'sent',
       refText: sentence.value.sentence_original,
+      appId: xfConfig.value.appId,
+      apiKey: xfConfig.value.apiKey,
+      apiSecret: xfConfig.value.apiSecret,
     })
     evalResult.value = result
   } catch (e: any) {

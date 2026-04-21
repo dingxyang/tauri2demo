@@ -39,6 +39,9 @@ pub async fn evaluate_mp3_file(
     category: String,
     ref_text: String,
     file_path: String,
+    app_id: String,
+    api_key: String,
+    api_secret: String,
 ) -> Result<EvalResult, String> {
     // 1. 解析并读取 MP3 文件
     let resolved = resolve_file_path(&file_path)?;
@@ -47,8 +50,8 @@ pub async fn evaluate_mp3_file(
         .map_err(|e| format!("failed to read MP3 file '{}': {}", resolved.display(), e))?;
     println!("[speech-eval] MP3 file loaded, {} bytes", mp3_data.len());
 
-    // 2. 读取讯飞配置
-    let config = XfConfig::from_env()?;
+    // 2. 构建讯飞配置
+    let config = XfConfig { app_id, api_key, api_secret };
     println!("[speech-eval] config loaded, app_id={}", config.app_id);
 
     // 3. 发送到讯飞 API 评测
@@ -70,14 +73,17 @@ pub async fn stop_recording_and_evaluate(
     lang: String,
     category: String,
     ref_text: String,
+    app_id: String,
+    api_key: String,
+    api_secret: String,
 ) -> Result<EvalResult, String> {
     // 1. 停止录音，获取 PCM 数据
     println!("[speech-eval] stopping recording...");
     let pcm_data = audio::stop_recording(&state)?;
     println!("[speech-eval] recorded {} PCM samples", pcm_data.len());
 
-    // 2. 读取讯飞配置
-    let config = XfConfig::from_env()?;
+    // 2. 构建讯飞配置
+    let config = XfConfig { app_id, api_key, api_secret };
     println!("[speech-eval] config loaded, app_id={}", config.app_id);
 
     // 3. PCM → MP3 编码

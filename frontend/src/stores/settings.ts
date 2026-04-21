@@ -18,7 +18,12 @@ export const useSettingsStore = defineStore("settings", () => {
     // 使用新的provider配置结构
     providers: createProviderConfig(),
     isDark: false,
-    defaultModelInfo: '' // 格式: "providerId/modelId"
+    defaultModelInfo: '', // 格式: "providerId/modelId"
+    xfSpeechEval: {
+      appId: '',
+      apiKey: '',
+      apiSecret: '',
+    }
   });
 
 
@@ -94,8 +99,11 @@ export const useSettingsStore = defineStore("settings", () => {
           }
         });
       }
+      if (settings.xfSpeechEval) {
+        Object.assign(settingsState.xfSpeechEval, settings.xfSpeechEval);
+      }
     }
-  
+
   };
 
   const saveSettings = async (data) => {
@@ -107,9 +115,12 @@ export const useSettingsStore = defineStore("settings", () => {
         }
       });
     }
-    
+    if (data.xfSpeechEval) {
+      Object.assign(settingsState.xfSpeechEval, data.xfSpeechEval);
+    }
+
     setSettings(settingsState);
-    
+
   };
 
   const saveCurrentModelInfo = (modelInfo: any) => {
