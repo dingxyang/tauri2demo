@@ -48,3 +48,8 @@ body {
   font-size: 1.25rem;
   font-weight: 600;
 }
+
+/* ElMessage 安全区偏移，防止被状态栏/刘海遮挡 */
+.el-message {
+  top: calc(20px + var(--safe-area-inset-top, 0px)) !important;
+}
