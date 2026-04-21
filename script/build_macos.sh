@@ -23,8 +23,10 @@ fail() { echo -e "${RED}  ✗${RESET} $*"; FAILED=1; }
 if [[ "$COMMAND" != "dev" && "$COMMAND" != "build" ]]; then
   echo -e "${CYAN}用法：${RESET} $0 <dev|build>"
   echo ""
-  echo "  dev    启动 Tauri Android 开发模式（热重载）"
-  echo "  build  构建 Android APK/AAB 发布包"
+  echo "  dev           启动 Tauri Android 开发模式（热重载）"
+  echo "  build android 构建 Android APK/AAB 发布包"
+  echo "  build ios     构建 iOS IPA 发布包"
+  echo "  build macos   构建 macOS dmg 发布包"
   exit 1
 fi
 
