@@ -37,6 +37,25 @@ function getSpanishVoice(): SpeechSynthesisVoice | null {
 }
 
 function play(mode: PlayMode) {
+  // Prefer Android native TTS bridge (injected by MainActivity)
+  const nativeTTS = (window as any).NativeTTS
+  if (nativeTTS && typeof nativeTTS.speak === 'function') {
+    if (playingMode.value === mode) {
+      nativeTTS.stop()
+      playingMode.value = null
+      return
+    }
+    nativeTTS.stop()
+    const rate = mode === 'slow' ? 0.65 : 1.0
+    playingMode.value = mode
+    nativeTTS.speak(sentence.value.sentence_original, 'es-ES', rate)
+    // Native TTS has no end callback, use a timeout estimate to reset state
+    setTimeout(() => {
+      if (playingMode.value === mode) playingMode.value = null
+    }, 10000)
+    return
+  }
+
   if (!('speechSynthesis' in window)) {
     ElMessage.warning('当前环境不支持语音播放')
     return
@@ -85,7 +104,9 @@ function play(mode: PlayMode) {
 }
 
 async function handleStart() {
-  speechSynthesis.cancel()
+  const nativeTTS = (window as any).NativeTTS
+  if (nativeTTS?.stop) nativeTTS.stop()
+  if ('speechSynthesis' in window) speechSynthesis.cancel()
   playingMode.value = null
   errorMsg.value = ''
   evalResult.value = null
