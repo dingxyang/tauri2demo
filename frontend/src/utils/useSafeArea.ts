@@ -5,16 +5,16 @@ export function useSafeArea() {
   const safeAreaBottom = ref(0)
 
   const updateSafeArea = () => {
-    // iOS 原生支持 env()
-    const computedTop = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('env(safe-area-inset-top, 0px)') || '0', 10)
-    const computedBottom = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('env(safe-area-inset-bottom, 0px)') || '0', 10)
+    const style = getComputedStyle(document.documentElement)
 
-    safeAreaTop.value = computedTop || 0
-    safeAreaBottom.value = computedBottom || 0
+    // Read CSS variables that may have been set by native code (Android) or CSS env() fallback
+    const cssTop = parseInt(style.getPropertyValue('--safe-area-inset-top') || '0', 10)
+    const cssBottom = parseInt(style.getPropertyValue('--safe-area-inset-bottom') || '0', 10)
 
-    // 安卓设备：通过 visualViewport 检测底部手势栏
+    safeAreaTop.value = cssTop || 0
+    safeAreaBottom.value = cssBottom || 0
+
+    // Android: use visualViewport to detect bottom gesture bar
     if (window.visualViewport) {
       const viewport = window.visualViewport
       const bottomInset = window.innerHeight - viewport.height - viewport.offsetTop
@@ -23,14 +23,15 @@ export function useSafeArea() {
       }
     }
 
-    // ⚠️ 安卓顶部刘海补偿逻辑，如果 top 仍为 0，则设置一个经验值（比如 24px ~ 32px）
+    // Android fallback: if native code hasn't set the top inset yet, use a reasonable default
     const ua = navigator.userAgent.toLowerCase()
     const isAndroid = ua.includes('android')
     if (isAndroid && safeAreaTop.value === 0) {
-      safeAreaTop.value = 10 
+      // Android status bar is typically 24-48dp; 48px is a safe default for most devices
+      safeAreaTop.value = 48
     }
 
-    // 同步到 CSS 变量
+    // Sync back to CSS variables
     document.documentElement.style.setProperty('--safe-area-inset-top', `${safeAreaTop.value}px`)
     document.documentElement.style.setProperty('--safe-area-inset-bottom', `${safeAreaBottom.value}px`)
   }
