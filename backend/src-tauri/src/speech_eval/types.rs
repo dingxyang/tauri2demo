@@ -1,18 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    env, fs,
-};
-
-const XF_APP_ID_ENV: &str = "XF_APP_ID";
-const XF_API_KEY_ENV: &str = "XF_API_KEY";
-const XF_API_SECRET_ENV: &str = "XF_API_SECRET";
-const XF_ENV_FILES: [&str; 4] = [
-    ".env",
-    ".env.local",
-    "backend/src-tauri/.env",
-    "backend/src-tauri/.env.local",
-];
 
 // === 讯飞 API 请求结构 ===
 
@@ -128,159 +114,12 @@ pub struct WordScore {
     pub read_type: i32,
 }
 
-// === 讯飞 API 配置 ===
+// === 讯飞 API 配置（由前端通过命令参数传入） ===
 
 pub struct XfConfig {
     pub app_id: String,
     pub api_key: String,
     pub api_secret: String,
-}
-
-impl XfConfig {
-    /// 优先读取进程环境变量；其次读本地 .env 文件；
-    /// 最后使用编译时烘焙的值（移动端 .env 不在设备上时的兜底）。
-    pub fn from_env() -> Result<Self, String> {
-        let file_vars = load_env_file_candidates();
-
-        // Compile-time constants baked in by build.rs (option_env! requires string literals)
-        let ct_app_id: Option<&str> = option_env!("XF_APP_ID");
-        let ct_api_key: Option<&str> = option_env!("XF_API_KEY");
-        let ct_api_secret: Option<&str> = option_env!("XF_API_SECRET");
-
-        let resolve_with_ct = |key: &str, ct: Option<&str>| -> Option<String> {
-            resolve_config_value(key, &file_vars)
-                .or_else(|| ct.map(|s| s.to_string()))
-        };
-
-        let app_id = resolve_with_ct(XF_APP_ID_ENV, ct_app_id);
-        let api_key = resolve_with_ct(XF_API_KEY_ENV, ct_api_key);
-        let api_secret = resolve_with_ct(XF_API_SECRET_ENV, ct_api_secret);
-
-        let missing: Vec<&str> = [
-            (XF_APP_ID_ENV, &app_id),
-            (XF_API_KEY_ENV, &api_key),
-            (XF_API_SECRET_ENV, &api_secret),
-        ]
-        .into_iter()
-        .filter(|(_, v)| v.is_none())
-        .map(|(k, _)| k)
-        .collect();
-
-        if !missing.is_empty() {
-            return Err(format!(
-                "Missing speech eval config: {}. Set them as environment variables or in {}",
-                missing.join(", "),
-                XF_ENV_FILES.join(", ")
-            ));
-        }
-
-        Ok(Self {
-            app_id: app_id.unwrap(),
-            api_key: api_key.unwrap(),
-            api_secret: api_secret.unwrap(),
-        })
-    }
-}
-
-fn load_env_file_candidates() -> HashMap<String, String> {
-    let mut vars = HashMap::new();
-
-    for path in XF_ENV_FILES {
-        let Ok(content) = fs::read_to_string(path) else {
-            continue;
-        };
-
-        for (key, value) in parse_env_content(&content) {
-            vars.insert(key, value);
-        }
-    }
-
-    vars
-}
-
-fn resolve_config_value(key: &str, file_vars: &HashMap<String, String>) -> Option<String> {
-    env::var(key)
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            file_vars
-                .get(key)
-                .cloned()
-                .filter(|value| !value.trim().is_empty())
-        })
-}
-
-fn parse_env_content(content: &str) -> Vec<(String, String)> {
-    content.lines().filter_map(parse_env_line).collect()
-}
-
-fn parse_env_line(line: &str) -> Option<(String, String)> {
-    let line = line.trim();
-    if line.is_empty() || line.starts_with('#') {
-        return None;
-    }
-
-    let line = line.strip_prefix("export ").unwrap_or(line);
-    let (key, raw_value) = line.split_once('=')?;
-    let key = key.trim();
-    if key.is_empty() {
-        return None;
-    }
-
-    let value = strip_inline_comment(raw_value.trim());
-    let value = value.trim();
-    let value = match (value.strip_prefix('"'), value.strip_suffix('"')) {
-        (Some(stripped), Some(_)) if value.len() >= 2 => stripped[..stripped.len() - 1].to_string(),
-        _ => match (value.strip_prefix('\''), value.strip_suffix('\'')) {
-            (Some(stripped), Some(_)) if value.len() >= 2 => {
-                stripped[..stripped.len() - 1].to_string()
-            }
-            _ => value.to_string(),
-        },
-    };
-
-    Some((key.to_string(), value))
-}
-
-fn strip_inline_comment(value: &str) -> &str {
-    let mut in_single = false;
-    let mut in_double = false;
-    let mut previous = None;
-
-    for (index, ch) in value.char_indices() {
-        match ch {
-            '\'' if !in_double => in_single = !in_single,
-            '"' if !in_single => in_double = !in_double,
-            '#' if !in_single && !in_double && previous.is_none_or(char::is_whitespace) => {
-                return value[..index].trim_end();
-            }
-            _ => {}
-        }
-
-        previous = Some(ch);
-    }
-
-    value
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{parse_env_content, parse_env_line};
-
-    #[test]
-    fn parse_env_line_supports_quotes_and_comments() {
-        let (key, value) = parse_env_line("XF_API_KEY=\"secret value\" # comment").unwrap();
-        assert_eq!(key, "XF_API_KEY");
-        assert_eq!(value, "secret value");
-    }
-
-    #[test]
-    fn parse_env_content_ignores_blank_lines() {
-        let items = parse_env_content("\n# comment\nXF_APP_ID=demo\n\nexport XF_API_SECRET='abc'\n");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0], ("XF_APP_ID".to_string(), "demo".to_string()));
-        assert_eq!(items[1], ("XF_API_SECRET".to_string(), "abc".to_string()));
-    }
 }
 
 /// 根据语言选择 WebSocket 端点

@@ -31,13 +31,12 @@ import {
 defineOptions({ name: 'Settings' });
 
 // 一级导航状态：null = 列表首页
-type Section = null | 'speech-eval' | 'model-services' | 'dictionary'
+type Section = null | 'speech-eval' | 'model-services'
 const currentSection = ref<Section>(null)
 
 const sectionTitle: Record<Exclude<Section, null>, string> = {
   'speech-eval': '语音评测配置',
   'model-services': '模型服务',
-  'dictionary': '词典配置',
 }
 
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
@@ -249,20 +248,6 @@ onMounted(() => {
         </button>
       </div>
 
-      <div class="menu-group">
-        <button class="menu-item" @click="currentSection = 'dictionary'">
-          <span class="menu-icon dict-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-          </span>
-          <span class="menu-label">词典配置</span>
-          <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
-            <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
     </div>
 
     <!-- 二级页面：语音评测配置 -->
@@ -425,17 +410,6 @@ onMounted(() => {
         </template>
       </div>
     </div>
-
-    <!-- 二级页面：词典配置（占位） -->
-    <div v-else-if="currentSection === 'dictionary'" class="settings-body">
-      <div class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dcdfe6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-        </svg>
-        <p>词典配置即将上线</p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -530,7 +504,6 @@ onMounted(() => {
 
 .speech-icon { background: #fff1f0; color: #e05a4b; }
 .model-icon  { background: #f0f4ff; color: #5b7cee; }
-.dict-icon   { background: #f0fff4; color: #36b37e; }
 
 .menu-label {
   flex: 1;
@@ -589,19 +562,4 @@ onMounted(() => {
   flex: 1;
 }
 
-/* 占位空状态 */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  gap: 12px;
-  color: #c0c4cc;
-  font-size: 14px;
-}
-
-.empty-state p {
-  margin: 0;
-}
 </style>
