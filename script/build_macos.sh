@@ -169,7 +169,7 @@ if [[ "$PLATFORM" == "android" ]]; then
   # keystore.properties（仅 build）
   if [[ "$COMMAND" == "build" ]]; then
     echo -e "${CYAN}[Android] keystore.properties${RESET}"
-    KEYSTORE_PROPS="$(dirname "$0")/backend/src-tauri/gen/android/keystore.properties"
+    KEYSTORE_PROPS="$(cd "$(dirname "$0")/.." && pwd)/backend/src-tauri/gen/android/keystore.properties"
     if [[ -f "$KEYSTORE_PROPS" ]]; then
       ok "keystore.properties found: $KEYSTORE_PROPS"
     else
