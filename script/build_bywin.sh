@@ -36,18 +36,61 @@ echo ""
 
 FAILED=0
 
-# ─── 1. MSVC Build Tools (cl.exe) ────────────────────────────────────────────
-echo -e "${CYAN}[1/8] MSVC 编译工具（cl.exe）${RESET}"
-# 检查是否能找到 cl.exe（可能在 Developer Command Prompt 或 VS 环境中）
+# ─── 1. C/C++ Build Tools ────────────────────────────────────────────────────
+echo -e "${CYAN}[1/8] C/C++ 编译工具${RESET}"
+# 检查策略：
+#   1. 直接可用的 MSVC (cl.exe) 或 GNU (gcc/g++)
+#   2. Rust GNU 工具链自带的 gcc（位于 rustup toolchain 深层目录，不在 PATH 中）
+#   3. 通过 rustc 编译测试验证工具链可用性
+FOUND_CC=0
+
 if command -v cl.exe &>/dev/null; then
-  ok "cl.exe 已找到：$(which cl.exe)"
+  ok "MSVC cl.exe 已找到：$(which cl.exe)"
+  FOUND_CC=1
+elif command -v gcc &>/dev/null && gcc --version &>/dev/null; then
+  GCC_INFO=$(gcc --version 2>&1 | head -1)
+  ok "GNU gcc 已找到：$(which gcc) — $GCC_INFO"
+  if command -v g++ &>/dev/null && g++ --version &>/dev/null; then
+    ok "GNU g++ 已找到：$(which g++) — $(g++ --version 2>&1 | head -1)"
+  else
+    warn "gcc 已找到但 g++ 未找到，部分 C++ 依赖可能编译失败"
+  fi
+  FOUND_CC=1
 elif command -v cc &>/dev/null && cc --version &>/dev/null; then
   ok "C 编译器已找到：$(which cc) — $(cc --version 2>&1 | head -1)"
-else
-  fail "未找到 MSVC 编译器（cl.exe）。"
-  fail "请安装 Visual Studio Build Tools："
-  fail "  https://visualstudio.microsoft.com/visual-cpp-build-tools/"
-  fail "安装时勾选「使用 C++ 的桌面开发」工作负载。"
+  FOUND_CC=1
+fi
+
+# 即使 gcc 不在 PATH 中，Rust GNU 工具链也自带了 gcc（x86_64-w64-mingw32-gcc）
+# Rust 的 cc crate 会自动找到它，所以只需验证 rustc 能正常编译即可
+if [[ "$FOUND_CC" -eq 0 ]]; then
+  if command -v rustc &>/dev/null; then
+    RUSTC_INFO=$(rustc --version --verbose 2>&1 | head -2 | tr '\n' ' ')
+    ok "Rust 编译器已找到：$RUSTC_INFO"
+    # 验证 Rust 能否正常编译链接（间接验证 gcc 可用）
+    TEST_SRC=$(mktemp /tmp/test_rust_XXXXXX.rs)
+    TEST_BIN=$(mktemp /tmp/test_rust_XXXXXX.exe)
+    echo 'fn main() {}' > "$TEST_SRC"
+    if rustc "$TEST_SRC" -o "$TEST_BIN" 2>/dev/null; then
+      ok "Rust GNU 工具链编译链接正常（gcc 由 Rust 自带，无需手动安装）"
+      FOUND_CC=1
+      rm -f "$TEST_SRC" "$TEST_BIN"
+    else
+      fail "Rust 编译链接失败，GNU 工具链可能不完整"
+      rm -f "$TEST_SRC" "$TEST_BIN"
+    fi
+  else
+    fail "未找到 C/C++ 编译器，也未找到 Rust 编译器。"
+  fi
+fi
+
+if [[ "$FOUND_CC" -eq 0 ]]; then
+  fail "请安装以下任一工具链："
+  fail "  • MSVC: https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+  fail "    安装时勾选「使用 C++ 的桌面开发」工作负载"
+  fail "  • GNU: https://www.mingw-w64.org/ 或通过 MSYS2 安装"
+  fail "    pacman -S mingw-w64-x86_64-gcc"
+  fail "  • Rust + GNU: https://rustup.rs 安装时选择 x86_64-pc-windows-gnu"
 fi
 
 # ─── 2. Java (JDK 17+) ────────────────────────────────────────────────────────
