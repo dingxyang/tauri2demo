@@ -319,19 +319,38 @@ if [[ ! -d "${GEN_ANDROID_DIR}/app/src/main/java" ]]; then
 fi
 
 if [[ "$ANDROID_INIT_NEEDED" -eq 1 ]]; then
-  warn "gen/android 项目不完整，正在运行 pnpm tauri android init ..."
+  # tauri android init 要求 gen/android 不存在或为空目录，否则会报错
+  # 因此需要先备份 keystore.properties，删除不完整的 gen/android，再重新 init
+  KEYSTORE_PROPS="${GEN_ANDROID_DIR}/keystore.properties"
+  KEYSTORE_BACKUP=""
+  if [[ -f "$KEYSTORE_PROPS" ]]; then
+    KEYSTORE_BACKUP="$(mktemp /tmp/keystore_properties_XXXXXX)"
+    cp "$KEYSTORE_PROPS" "$KEYSTORE_BACKUP"
+    warn "已备份 keystore.properties"
+  fi
+
+  warn "正在删除不完整的 gen/android 目录 ..."
+  rm -rf "${GEN_ANDROID_DIR}"
+
+  warn "正在运行 pnpm tauri android init ..."
   (cd "$PROJECT_ROOT" && pnpm tauri android init)
 
-  # init 可能覆盖 keystore.properties，需要重新写入
-  KEYSTORE_PROPS="${GEN_ANDROID_DIR}/keystore.properties"
-  if [[ ! -f "$KEYSTORE_PROPS" ]]; then
-    warn "android init 后 keystore.properties 缺失，正在重新写入 ..."
-    cat > "$KEYSTORE_PROPS" <<'KEYSTORE_EOF'
+  # 恢复 keystore.properties（init 会生成默认的，需要用我们的覆盖）
+  if [[ -n "$KEYSTORE_BACKUP" && -f "$KEYSTORE_BACKUP" ]]; then
+    cp "$KEYSTORE_BACKUP" "${GEN_ANDROID_DIR}/keystore.properties"
+    rm -f "$KEYSTORE_BACKUP"
+    ok "keystore.properties 已恢复"
+  else
+    # 没有备份（原来就不存在），写入默认配置
+    if [[ ! -f "${GEN_ANDROID_DIR}/keystore.properties" ]]; then
+      warn "正在写入 keystore.properties ..."
+      cat > "${GEN_ANDROID_DIR}/keystore.properties" <<'KEYSTORE_EOF'
 keyAlias=tauri2demo_key
 password=abc009988
 storeFile="C:\\SyncData\\release.keystore"
 KEYSTORE_EOF
-    ok "keystore.properties 已重新写入"
+      ok "keystore.properties 已写入"
+    fi
   fi
 
   ok "pnpm tauri android init 完成"
@@ -416,6 +435,22 @@ if [[ -n "${ANDROID_NDK_HOME:-}" ]]; then
   else
     warn "NDK toolchain 目录未找到：$NDK_TOOLCHAIN"
     warn "将使用系统默认编译器"
+  fi
+fi
+
+# Rust GNU 工具链的 dlltool — 交叉编译 Android 时 cc crate 需要调用 dlltool
+# 该工具位于 rustlib/x86_64-pc-windows-gnu/bin/self-contained/ 下，默认不在 PATH 中
+if command -v rustup &>/dev/null; then
+  RUSTC_UNIX="$(cygpath -u "$(rustup which rustc)" 2>/dev/null)"
+  if [[ -n "$RUSTC_UNIX" ]]; then
+    RUST_SELF_CONTAINED="$(dirname "$(dirname "$RUSTC_UNIX")")/lib/rustlib/x86_64-pc-windows-gnu/bin/self-contained"
+    if [[ -d "$RUST_SELF_CONTAINED" && -f "${RUST_SELF_CONTAINED}/dlltool.exe" ]]; then
+      export PATH="${RUST_SELF_CONTAINED}:${PATH}"
+      ok "Rust dlltool 已加入 PATH：${RUST_SELF_CONTAINED}"
+    else
+      warn "Rust GNU 工具链 self-contained 目录未找到：$RUST_SELF_CONTAINED"
+      warn "交叉编译 Android 时可能因找不到 dlltool 而失败"
+    fi
   fi
 fi
 
