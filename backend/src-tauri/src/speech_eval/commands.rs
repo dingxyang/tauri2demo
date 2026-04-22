@@ -156,6 +156,25 @@ pub async fn stop_recording_and_evaluate(
     let pcm_data = audio::stop_recording(&state)?;
     println!("[speech-eval] recorded {} PCM samples", pcm_data.len());
 
+    // 1.5 调试：统计 PCM 峰值与 RMS，确认麦克风是否真的收到声音
+    if !pcm_data.is_empty() {
+        let mut peak: i32 = 0;
+        let mut sum_sq: f64 = 0.0;
+        for &s in &pcm_data {
+            let a = (s as i32).abs();
+            if a > peak { peak = a; }
+            sum_sq += (s as f64) * (s as f64);
+        }
+        let rms = (sum_sq / pcm_data.len() as f64).sqrt();
+        println!(
+            "[speech-eval][debug] PCM stats: samples={}, peak={}, rms={:.1}, peak_ratio={:.4}",
+            pcm_data.len(),
+            peak,
+            rms,
+            peak as f64 / i16::MAX as f64,
+        );
+    }
+
     // 2. 构建讯飞配置
     let config = XfConfig { app_id, api_key, api_secret };
     println!("[speech-eval] config loaded, app_id={}", config.app_id);
