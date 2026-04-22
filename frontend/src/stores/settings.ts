@@ -23,7 +23,8 @@ export const useSettingsStore = defineStore("settings", () => {
       appId: '',
       apiKey: '',
       apiSecret: '',
-    }
+    },
+    chatDefaultPrompt: '',
   });
 
 
@@ -101,6 +102,9 @@ export const useSettingsStore = defineStore("settings", () => {
       }
       if (settings.xfSpeechEval) {
         Object.assign(settingsState.xfSpeechEval, settings.xfSpeechEval);
+      }
+      if (settings.chatDefaultPrompt !== undefined) {
+        settingsState.chatDefaultPrompt = settings.chatDefaultPrompt;
       }
     }
 

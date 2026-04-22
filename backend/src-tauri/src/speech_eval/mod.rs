@@ -1,3 +1,4 @@
+pub mod asr;
 pub mod audio;
 pub mod auth;
 pub mod client;

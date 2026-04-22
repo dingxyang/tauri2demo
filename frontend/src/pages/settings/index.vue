@@ -31,12 +31,13 @@ import {
 defineOptions({ name: 'Settings' });
 
 // 一级导航状态：null = 列表首页
-type Section = null | 'speech-eval' | 'model-services'
+type Section = null | 'speech-eval' | 'model-services' | 'chat'
 const currentSection = ref<Section>(null)
 
 const sectionTitle: Record<Exclude<Section, null>, string> = {
   'speech-eval': '语音评测配置',
   'model-services': '模型服务',
+  'chat': '场景对话',
 }
 
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
@@ -84,7 +85,7 @@ const autoSave = () => {
 };
 
 watch(
-  () => [settings.value.providers, settings.value.xfSpeechEval],
+  () => [settings.value.providers, settings.value.xfSpeechEval, settings.value.chatDefaultPrompt],
   () => { autoSave(); },
   { deep: true }
 );
@@ -242,6 +243,17 @@ onMounted(() => {
             </svg>
           </span>
           <span class="menu-label">模型服务</span>
+          <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
+            <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="menu-item" @click="currentSection = 'chat'">
+          <span class="menu-icon chat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
+          <span class="menu-label">场景对话</span>
           <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
             <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -410,6 +422,23 @@ onMounted(() => {
         </template>
       </div>
     </div>
+
+    <!-- 二级页面：场景对话 -->
+    <div v-else-if="currentSection === 'chat'" class="settings-body">
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">默认系统提示语</span>
+        </div>
+        <div class="form-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+          <el-input
+            v-model="settings.chatDefaultPrompt"
+            type="textarea"
+            :rows="6"
+            placeholder="输入系统提示语，定义AI的角色和行为"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -504,6 +533,7 @@ onMounted(() => {
 
 .speech-icon { background: #fff1f0; color: #e05a4b; }
 .model-icon  { background: #f0f4ff; color: #5b7cee; }
+.chat-icon   { background: #e8f4fd; color: #2B5CE6; }
 
 .menu-label {
   flex: 1;

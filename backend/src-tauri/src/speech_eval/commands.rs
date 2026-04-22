@@ -4,9 +4,10 @@ use std::path::Path;
 use tauri::State;
 
 use super::audio::{self, RecordingState};
+use super::asr;
 use super::client;
 use super::tts;
-use super::types::{EvalResult, XfConfig};
+use super::types::{AsrResult, EvalResult, XfConfig};
 
 #[tauri::command]
 pub async fn tts_synthesize(
@@ -116,5 +117,25 @@ pub async fn stop_recording_and_evaluate(
     let result = client::evaluate(&config, &lang, &category, &ref_text, &mp3_data).await?;
     println!("[speech-eval] evaluation complete, overall={}", result.overall);
 
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn stop_recording_and_recognize(
+    state: State<'_, RecordingState>,
+    app_id: String,
+    api_key: String,
+    api_secret: String,
+) -> Result<AsrResult, String> {
+    println!("[asr] stopping recording...");
+    let pcm_data = audio::stop_recording(&state)?;
+    println!("[asr] recorded {} PCM samples", pcm_data.len());
+    let config = XfConfig { app_id, api_key, api_secret };
+    println!("[asr] encoding {} PCM samples to MP3...", pcm_data.len());
+    let mp3_data = audio::encode_pcm_to_mp3(&pcm_data)?;
+    println!("[asr] MP3 encoded, {} bytes", mp3_data.len());
+    println!("[asr] starting recognition...");
+    let result = asr::recognize(&config, &mp3_data).await?;
+    println!("[asr] recognition complete, text={}", result.text);
     Ok(result)
 }

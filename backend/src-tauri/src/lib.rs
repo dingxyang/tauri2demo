@@ -21,7 +21,8 @@ pub fn run() {
             commands::start_recording,
             commands::stop_recording_and_evaluate,
             commands::evaluate_mp3_file,
-            commands::tts_synthesize
+            commands::tts_synthesize,
+            commands::stop_recording_and_recognize
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -37,6 +37,15 @@ export interface StreamRequestParams extends BaseRequestParams {
   onData: (chunk: string) => void;
 }
 
+// 多轮对话请求参数接口
+export interface ChatStreamParams {
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+  currentModelInfo: string;
+  systemPrompt?: string;
+  onData: (chunk: string) => void;
+  abortController?: AbortController;
+}
+
 // AI 客户端配置接口
 export interface AIClientConfig {
   providerId: string;      // 提供商ID
@@ -300,6 +309,60 @@ export class AIClientManager {
         },
         onFinish({ text, finishReason, usage, response, steps, totalUsage }) {
           console.log("onFinish", { text, finishReason, usage, response, steps, totalUsage });
+        },
+      });
+
+      for await (const textPart of result.textStream) {
+        if (abortController?.signal.aborted) {
+          throw new ApiError("请求已被取消", 0, "REQUEST_ABORTED");
+        }
+        onData(textPart);
+      }
+    } catch (error) {
+      handleAIRequestError(error);
+    }
+  }
+
+  /**
+   * 多轮对话流式调用
+   */
+  public async chatStream(params: ChatStreamParams): Promise<void> {
+    if (!params.currentModelInfo) {
+      throw new ApiError("模型信息未指定", 0, "MODEL_INFO_NOT_SPECIFIED");
+    }
+
+    const { messages, systemPrompt, onData, currentModelInfo, abortController } = params;
+
+    try {
+      const modelConfig = this.parseModelInfo(currentModelInfo);
+
+      const config: AIClientConfig = {
+        providerId: modelConfig.providerId,
+        modelId: modelConfig.modelId,
+        apiBaseUrl: modelConfig.apiBaseUrl,
+        apiKey: modelConfig.apiKey,
+      };
+
+      const client = this.getOrCreateClient(config);
+      const model = this.validateModelId(modelConfig.modelId);
+
+      // 构建完整消息数组：系统提示语 + 对话历史
+      const fullMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+      if (systemPrompt) {
+        fullMessages.push({ role: 'system', content: systemPrompt });
+      }
+      fullMessages.push(...messages);
+
+      const result = await streamText({
+        model: client(model),
+        messages: fullMessages,
+        temperature: OPENAI_TEMPERATURE,
+        abortSignal: abortController?.signal,
+        onError: (error) => {
+          handleAIRequestError(error?.error || error);
+        },
+        onFinish({ text, finishReason, usage }) {
+          console.log("[chat] onFinish", { finishReason, usage });
         },
       });
 
