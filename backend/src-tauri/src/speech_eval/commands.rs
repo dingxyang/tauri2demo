@@ -84,8 +84,19 @@ pub async fn evaluate_mp3_file(
     Ok(result)
 }
 
+/// 词典/跟读专用：纯录音，不启动实时 ASR。
+/// 不要在这里加任何 RTASR/WebSocket 相关逻辑，以免影响讯飞评测打分。
 #[tauri::command]
-pub async fn start_recording(
+pub async fn start_recording(state: State<'_, RecordingState>) -> Result<(), String> {
+    // 确保不会因为之前对话流程的残留导致回调走 RTASR 分支
+    *state.rtasr_tx.lock().unwrap() = None;
+    audio::start_recording(&state)
+}
+
+/// 对话专用：录音 + 实时语音转写（RTASR）。
+/// 与 `start_recording` 完全独立，互不影响。
+#[tauri::command]
+pub async fn start_realtime_asr_recording(
     state: State<'_, RecordingState>,
     app_handle: tauri::AppHandle,
     app_id: String,
@@ -93,33 +104,34 @@ pub async fn start_recording(
     api_secret: String,
     lang: String,
 ) -> Result<(), String> {
-    // If XFyun credentials are provided, start real-time ASR alongside recording
-    if !app_id.is_empty() && !api_key.is_empty() && !api_secret.is_empty() {
-        let config = XfConfig {
-            app_id: app_id.clone(),
-            api_key: api_key.clone(),
-            api_secret: api_secret.clone(),
-        };
-        let result_store = state.rtasr_result.clone();
-        let handle_store = state.rtasr_handle.clone();
-        let tx_store = state.rtasr_tx.clone();
-
-        // Create channel: PCM data from cpal callback → WebSocket sender
-        let (tx, rx) = tokio::sync::mpsc::channel::<Vec<i16>>(32);
-        *tx_store.lock().unwrap() = Some(tx);
-
-        // Spawn the RTASR WebSocket task
-        let lang_owned = lang.clone();
-        let handle = tokio::spawn(async move {
-            match rtasr::start_realtime_asr(app_handle, &config, &lang_owned, rx, result_store).await {
-                Ok(()) => println!("[rtasr] task completed successfully"),
-                Err(e) => eprintln!("[rtasr] task failed: {}", e),
-            }
-        });
-        *handle_store.lock().unwrap() = Some(handle);
-
-        println!("[rtasr] real-time ASR started, lang={}", lang);
+    if app_id.is_empty() || api_key.is_empty() || api_secret.is_empty() {
+        return Err("missing XFyun credentials for realtime ASR".to_string());
     }
+
+    let config = XfConfig {
+        app_id: app_id.clone(),
+        api_key: api_key.clone(),
+        api_secret: api_secret.clone(),
+    };
+    let result_store = state.rtasr_result.clone();
+    let handle_store = state.rtasr_handle.clone();
+    let tx_store = state.rtasr_tx.clone();
+
+    // Create channel: PCM data from cpal callback → WebSocket sender
+    let (tx, rx) = tokio::sync::mpsc::channel::<Vec<i16>>(32);
+    *tx_store.lock().unwrap() = Some(tx);
+
+    // Spawn the RTASR WebSocket task
+    let lang_owned = lang.clone();
+    let handle = tokio::spawn(async move {
+        match rtasr::start_realtime_asr(app_handle, &config, &lang_owned, rx, result_store).await {
+            Ok(()) => println!("[rtasr] task completed successfully"),
+            Err(e) => eprintln!("[rtasr] task failed: {}", e),
+        }
+    });
+    *handle_store.lock().unwrap() = Some(handle);
+
+    println!("[rtasr] real-time ASR started, lang={}", lang);
 
     audio::start_recording(&state)
 }

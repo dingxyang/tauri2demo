@@ -123,7 +123,7 @@ async function handleStartRecording() {
   try {
     const { appId, apiKey, apiSecret } = settingsStore.settingsState.xfSpeechEval;
     const lang = inputLanguage.value;
-    await invoke('start_recording', { appId, apiKey, apiSecret, lang });
+    await invoke('start_realtime_asr_recording', { appId, apiKey, apiSecret, lang });
   } catch (e) {
     ElMessage.error('录音启动失败');
     console.error(e);

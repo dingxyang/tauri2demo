@@ -142,6 +142,7 @@ pub fn run() {
             greet,
             baidu_ocr,
             commands::start_recording,
+            commands::start_realtime_asr_recording,
             commands::cancel_recording,
             commands::stop_recording_and_evaluate,
             commands::evaluate_mp3_file,
