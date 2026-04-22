@@ -156,6 +156,64 @@ if [[ "$FOUND_CC" -eq 0 ]]; then
   fail "  • Rust + GNU: https://rustup.rs 安装时选择 x86_64-pc-windows-gnu"
 fi
 
+# ── 检查 GNU 汇编器 as.exe（dlltool 依赖） ──
+# Rust GNU 工具链的 dlltool 需要 as.exe（GNU 汇编器）来创建导入库，
+# 但 Rust 自带的 self-contained 目录不包含 as.exe，导致编译时 CreateProcess 失败。
+MSYS2_MINGW_BIN="/c/msys64/mingw64/bin"
+FOUND_AS=0
+if command -v as &>/dev/null; then
+  FOUND_AS=1
+  ok "GNU 汇编器 as 已在 PATH 中"
+elif [[ -f "${MSYS2_MINGW_BIN}/as.exe" ]]; then
+  export PATH="${MSYS2_MINGW_BIN}:${PATH}"
+  FOUND_AS=1
+  ok "GNU 汇编器 as 已找到：${MSYS2_MINGW_BIN}/as.exe（已添加到 PATH）"
+fi
+
+if [[ "$FOUND_AS" -eq 0 ]]; then
+  warn "未找到 GNU 汇编器 as.exe，Rust dlltool 将无法创建导入库（编译会报 CreateProcess 错误）"
+  if [[ -d "/c/msys64" ]]; then
+    # MSYS2 已安装但缺少 binutils 包
+    if confirm_install "通过 MSYS2 pacman 安装 mingw-w64-x86_64-binutils"; then
+      /c/msys64/usr/bin/bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-binutils" 2>&1
+      if [[ -f "${MSYS2_MINGW_BIN}/as.exe" ]]; then
+        export PATH="${MSYS2_MINGW_BIN}:${PATH}"
+        FOUND_AS=1
+        ok "mingw-w64-x86_64-binutils 安装成功，as.exe 已添加到 PATH"
+      else
+        warn "pacman 安装完成但未找到 as.exe，可能需要更新 MSYS2："
+        warn "  /c/msys64/usr/bin/bash.exe -lc 'pacman -Syu --noconfirm && pacman -S --noconfirm mingw-w64-x86_64-binutils'"
+      fi
+    fi
+  else
+    # MSYS2 未安装，需要先安装
+    if confirm_install "通过 winget 安装 MSYS2，然后安装 mingw-w64-x86_64-binutils"; then
+      winget install MSYS2.MSYS2 --accept-package-agreements --accept-source-agreements 2>&1
+      if [[ -d "/c/msys64" ]]; then
+        # 初始化 MSYS2 并安装 binutils
+        /c/msys64/usr/bin/bash.exe -lc "pacman-key --init && pacman-key --populate msys2 && pacman -Sy --noconfirm archlinux-msys2-keyring && pacman -Su --noconfirm && pacman -S --noconfirm --needed mingw-w64-x86_64-binutils" 2>&1
+        if [[ -f "${MSYS2_MINGW_BIN}/as.exe" ]]; then
+          export PATH="${MSYS2_MINGW_BIN}:${PATH}"
+          FOUND_AS=1
+          ok "MSYS2 + binutils 安装成功，as.exe 已添加到 PATH"
+        else
+          warn "MSYS2 已安装但 binutils 安装可能不完整，请手动执行："
+          warn "  /c/msys64/usr/bin/bash.exe -lc 'pacman -S --noconfirm mingw-w64-x86_64-binutils'"
+        fi
+      else
+        warn "winget 安装 MSYS2 后未在 C:\\msys64 找到安装目录"
+      fi
+    fi
+  fi
+
+  if [[ "$FOUND_AS" -eq 0 ]]; then
+    fail "缺少 GNU 汇编器 as.exe，Android 交叉编译将失败。"
+    fail "请安装 MSYS2（https://www.msys2.org/）并运行："
+    fail "  pacman -S mingw-w64-x86_64-binutils"
+    fail "然后将 C:\\msys64\\mingw64\\bin 添加到 PATH"
+  fi
+fi
+
 # ─── 2. Java (JDK 17+) ────────────────────────────────────────────────────────
 echo -e "${CYAN}[2/8] Java JDK（17+）${RESET}"
 if command -v java &>/dev/null; then
