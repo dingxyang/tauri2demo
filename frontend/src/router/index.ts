@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
         meta: { keepAlive: true }
       },
       {
+        path: '/scan',
+        name: 'Scan',
+        component: () => import('@/pages/scan/index.vue'),
+        meta: { keepAlive: true }
+      },
+      {
         path: '/settings',
         name: 'Settings',
         component: () => import('@/pages/settings/index.vue'),
