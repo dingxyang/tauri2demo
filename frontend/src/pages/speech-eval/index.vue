@@ -89,7 +89,7 @@ async function play(mode: PlayMode) {
     }
     audio.onerror = () => {
       playingMode.value = null
-      ElMessage.warning('音频播放失败')
+      // ElMessage.warning('音频播放失败')
       URL.revokeObjectURL(url)
       currentAudio = null
     }

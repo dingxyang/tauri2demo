@@ -1,6 +1,6 @@
 <template>
   <div :class="['message-item', message.role === 'user' ? 'message-user' : 'message-assistant']">
-    <div :class="['message-bubble', message.role === 'user' ? 'bubble-user' : 'bubble-assistant']">
+    <div :class="['message-bubble', message.role === 'user' ? 'bubble-user' : 'bubble-assistant']" @click="handleBubbleClick">
       <span v-if="message.isVoice" class="voice-icon">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -25,8 +25,20 @@
 
 <script setup lang="ts">
 import type { Message } from '@/stores/chat';
-defineProps<{ message: Message; isPlaying: boolean }>();
-defineEmits<{ 'play-tts': [message: Message] }>();
+
+const props = defineProps<{ message: Message; isPlaying: boolean }>();
+
+const emit = defineEmits<{
+  'play-tts': [message: Message];
+  'play-voice': [message: Message];
+}>();
+
+function handleBubbleClick() {
+  // Click on voice user message to play the original audio
+  if (props.message.role === 'user' && props.message.isVoice && props.message.audioPath) {
+    emit('play-voice', props.message);
+  }
+}
 </script>
 
 <style scoped>
@@ -35,6 +47,7 @@ defineEmits<{ 'play-tts': [message: Message] }>();
 .message-assistant { justify-content: flex-start; }
 .message-bubble { max-width: 75%; padding: 10px 14px; font-size: 15px; line-height: 1.5; word-break: break-word; }
 .bubble-user { background: #2B5CE6; color: #fff; border-radius: 12px 12px 4px 12px; }
+.bubble-user:has(.voice-icon) { cursor: pointer; }
 .bubble-assistant { background: #fff; color: #1a1a1a; border-radius: 12px 12px 12px 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .voice-icon { display: inline-flex; align-items: center; margin-right: 4px; opacity: 0.7; }
 .tts-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; cursor: pointer; color: #999; border-radius: 50%; flex-shrink: 0; transition: color 0.2s; }

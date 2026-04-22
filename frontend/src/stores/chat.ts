@@ -8,6 +8,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   isVoice?: boolean;
+  audioPath?: string;
   createdAt: number;
 }
 
@@ -19,6 +20,7 @@ export interface ChatSession {
   createdAt: number;
   updatedAt: number;
   scenarioId?: string;
+  inputLanguage?: string;
 }
 
 const STORAGE_KEY = "chatSessions";
@@ -97,7 +99,8 @@ export const useChatStore = defineStore("chat", () => {
   function addMessage(
     role: "user" | "assistant",
     content: string,
-    isVoice = false
+    isVoice = false,
+    audioPath?: string
   ): Message | null {
     const session = activeSession.value;
     if (!session) return null;
@@ -107,6 +110,7 @@ export const useChatStore = defineStore("chat", () => {
       role,
       content,
       isVoice,
+      audioPath,
       createdAt: Date.now(),
     };
     session.messages.push(msg);
@@ -147,9 +151,11 @@ export const useChatStore = defineStore("chat", () => {
   }
 
   function createScenarioSession(scenario: Scenario): ChatSession {
-    const systemPrompt = generateScenarioSystemPrompt(scenario);
+    const inputLanguage = "es";
+    const systemPrompt = generateScenarioSystemPrompt(scenario, inputLanguage);
     const session = createSession(systemPrompt);
     session.scenarioId = scenario.id;
+    session.inputLanguage = inputLanguage;
     session.title = scenario.titleEs || scenario.title;
 
     // Inject the AI opening message directly (no API call)
@@ -163,6 +169,14 @@ export const useChatStore = defineStore("chat", () => {
     session.updatedAt = Date.now();
     saveSessions();
     return session;
+  }
+
+  function updateInputLanguage(lang: string): void {
+    const session = activeSession.value;
+    if (!session) return;
+    session.inputLanguage = lang;
+    session.updatedAt = Date.now();
+    saveSessions();
   }
 
   function ensureActiveSession(defaultPrompt = ""): ChatSession {
@@ -190,6 +204,7 @@ export const useChatStore = defineStore("chat", () => {
     updateLastAssistantMessage,
     updateSystemPrompt,
     createScenarioSession,
+    updateInputLanguage,
     ensureActiveSession,
     saveSessions,
   };

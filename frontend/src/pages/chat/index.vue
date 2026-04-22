@@ -5,7 +5,7 @@
       :is-scenario="isScenario"
       @toggle-history="showHistory = true"
       @new-session="handleNewSession"
-      @open-settings="showPromptSettings = true"
+      @open-summary="handleOpenSummary"
       @open-scenarios="showScenarioBrowser = true"
       @open-reference="showReferenceDialogue = true"
     />
@@ -14,15 +14,19 @@
       :messages="activeSession?.messages || []"
       :playing-message-id="playingMessageId"
       :show-scenario-entry="true"
+      :scenario="currentScenario"
       @play-tts="handlePlayTts"
+      @play-voice="handlePlayVoice"
       @open-scenarios="showScenarioBrowser = true"
     />
     <InputArea
       ref="inputAreaRef"
+      :input-language="inputLanguage"
       @send-text="handleSendText"
       @start-recording="handleStartRecording"
       @send-recording="handleSendRecording"
       @cancel-recording="handleCancelRecording"
+      @change-language="handleChangeLanguage"
     />
     <HistorySidebar
       :visible="showHistory"
@@ -31,13 +35,6 @@
       @close="showHistory = false"
       @select-session="handleSelectSession"
       @delete-session="handleDeleteSession"
-    />
-    <PromptSettings
-      :visible="showPromptSettings"
-      :system-prompt="activeSession?.systemPrompt || ''"
-      :is-scenario="isScenario"
-      @close="showPromptSettings = false"
-      @save="handleSavePrompt"
     />
     <ScenarioBrowser
       :visible="showScenarioBrowser"
@@ -49,11 +46,17 @@
       :scenario-id="activeSession?.scenarioId"
       @close="showReferenceDialogue = false"
     />
+    <SummaryDialog
+      :visible="showSummary"
+      :session="activeSession"
+      @close="showSummary = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onActivated } from 'vue';
+import { storeToRefs } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
 import { ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
@@ -63,9 +66,10 @@ import ChatHeader from './ChatHeader.vue';
 import MessageList from './MessageList.vue';
 import InputArea from './InputArea.vue';
 import HistorySidebar from './HistorySidebar.vue';
-import PromptSettings from './PromptSettings.vue';
 import ScenarioBrowser from './ScenarioBrowser.vue';
 import ReferenceDialogue from './ReferenceDialogue.vue';
+import SummaryDialog from './SummaryDialog.vue';
+import { scenarios } from './data/scenarios';
 import type { Message } from '@/stores/chat';
 import type { Scenario } from './data/scenarios';
 
@@ -74,22 +78,30 @@ defineOptions({ name: 'Chat' });
 const chatStore = useChatStore();
 const settingsStore = useSettingsStore();
 
-const activeSession = chatStore.activeSession;
-const sortedSessions = chatStore.sortedSessions;
-const activeSessionId = chatStore.activeSessionId;
+const { activeSession, sortedSessions, activeSessionId } = storeToRefs(chatStore);
 
 const messageListRef = ref<InstanceType<typeof MessageList> | null>(null);
 const inputAreaRef = ref<InstanceType<typeof InputArea> | null>(null);
 const showHistory = ref(false);
-const showPromptSettings = ref(false);
 const showScenarioBrowser = ref(false);
 const showReferenceDialogue = ref(false);
+const showSummary = ref(false);
 const isLoading = ref(false);
 const currentAbortController = ref<AbortController | null>(null);
 const playingMessageId = ref<string | null>(null);
 const currentAudio = ref<HTMLAudioElement | null>(null);
 
-const isScenario = computed(() => !!activeSession?.scenarioId);
+const isScenario = computed(() => !!activeSession.value?.scenarioId);
+
+const currentScenario = computed<Scenario | undefined>(() => {
+  if (!activeSession.value?.scenarioId) return undefined;
+  return scenarios.find(s => s.id === activeSession.value!.scenarioId);
+});
+
+// Input language for voice recognition
+const inputLanguage = computed(() => {
+  return activeSession.value?.inputLanguage || 'es';
+});
 
 onMounted(() => {
   chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || '');
@@ -120,11 +132,11 @@ async function handleSendRecording() {
   if (isLoading.value) return;
   try {
     const { appId, apiKey, apiSecret } = settingsStore.settingsState.xfSpeechEval;
-    const result = await invoke<{ text: string }>('stop_recording_and_recognize', {
+    const result = await invoke<{ text: string; audio_path?: string }>('stop_recording_and_recognize', {
       appId, apiKey, apiSecret,
     });
     if (result.text) {
-      chatStore.addMessage('user', result.text, true);
+      chatStore.addMessage('user', result.text, true, result.audio_path);
       await requestAIReply();
     } else {
       ElMessage.warning('未识别到语音内容');
@@ -144,6 +156,13 @@ function handleCancelRecording() {
     }).catch(() => {});
   } catch (_e) {
     // Ignore cancel errors
+  }
+}
+
+// === Language change ===
+function handleChangeLanguage(lang: string) {
+  if (activeSession.value) {
+    chatStore.updateInputLanguage(lang);
   }
 }
 
@@ -223,6 +242,27 @@ function stopTts() {
   playingMessageId.value = null;
 }
 
+// === Voice message playback ===
+async function handlePlayVoice(msg: Message) {
+  if (!msg.audioPath) {
+    ElMessage.info('该语音消息无录音记录');
+    return;
+  }
+  stopTts();
+  try {
+    playingMessageId.value = msg.id;
+    const audio = new Audio(msg.audioPath);
+    currentAudio.value = audio;
+    audio.onended = () => { playingMessageId.value = null; currentAudio.value = null; };
+    audio.onerror = () => { playingMessageId.value = null; currentAudio.value = null; ElMessage.error('播放录音失败'); };
+    audio.play();
+  } catch (e) {
+    playingMessageId.value = null;
+    ElMessage.error('播放录音失败');
+    console.error(e);
+  }
+}
+
 // === Session management ===
 function handleNewSession() {
   chatStore.createSession(settingsStore.settingsState.chatDefaultPrompt || '');
@@ -230,12 +270,16 @@ function handleNewSession() {
 }
 function handleSelectSession(id: string) { chatStore.switchSession(id); showHistory.value = false; }
 function handleDeleteSession(id: string) { chatStore.deleteSession(id); chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || ''); }
-function handleSavePrompt(prompt: string) { chatStore.updateSystemPrompt(prompt); }
 
 // === Scenario management ===
 function handleSelectScenario(scenario: Scenario) {
   chatStore.createScenarioSession(scenario);
   showScenarioBrowser.value = false;
+}
+
+// === Summary ===
+function handleOpenSummary() {
+  showSummary.value = true;
 }
 </script>
 

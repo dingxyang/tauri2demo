@@ -11,7 +11,7 @@
           </button>
         </div>
         <div class="session-list">
-          <div v-for="session in sessions" :key="session.id" :class="['session-item', { active: session.id === activeSessionId }]" @click="$emit('select-session', session.id)">
+          <div v-for="session in sessions" :key="session.id" :class="['session-item', { active: session.id === currentActiveId }]" @click="$emit('select-session', session.id)">
             <div class="session-info">
               <div class="session-title">
                 <span v-if="session.scenarioId" class="scenario-badge" title="情景对话">
@@ -23,7 +23,7 @@
               </div>
               <div class="session-date">{{ formatDate(session.updatedAt) }}</div>
             </div>
-            <button class="delete-btn" @click.stop="$emit('delete-session', session.id)" title="删除">
+            <button class="delete-btn" @click.prevent.stop="handleDelete(session.id, $event)" title="删除" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
               </svg>
@@ -37,12 +37,33 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { ElMessageBox } from 'element-plus';
 import type { ChatSession } from '@/stores/chat';
-defineProps<{ visible: boolean; sessions: ChatSession[]; activeSessionId: string }>();
-defineEmits<{ 'close': []; 'select-session': [id: string]; 'delete-session': [id: string] }>();
+
+const props = defineProps<{ visible: boolean; sessions: ChatSession[]; activeSessionId: string | null }>();
+const emit = defineEmits<{ 'close': []; 'select-session': [id: string]; 'delete-session': [id: string] }>();
+
+const currentActiveId = computed(() => props.activeSessionId || '');
+
 function formatDate(timestamp: number): string {
   const d = new Date(timestamp);
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+async function handleDelete(id: string, e: Event) {
+  e.stopPropagation();
+  e.preventDefault();
+  try {
+    await ElMessageBox.confirm('确定删除此会话？', '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    emit('delete-session', id);
+  } catch {
+    // User cancelled
+  }
 }
 </script>
 
@@ -63,7 +84,7 @@ function formatDate(timestamp: number): string {
 .session-title { font-size: 15px; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
 .scenario-badge { display: inline-flex; align-items: center; color: #2B5CE6; flex-shrink: 0; }
 .session-date { font-size: 12px; color: #999; margin-top: 2px; }
-.delete-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; cursor: pointer; color: #c0c4cc; border-radius: 4px; flex-shrink: 0; }
+.delete-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; cursor: pointer; color: #c0c4cc; border-radius: 4px; flex-shrink: 0; z-index: 1; }
 .delete-btn:active { color: #f56c6c; background: #fef0f0; }
 .empty-list { padding: 32px 16px; text-align: center; color: #999; font-size: 14px; }
 </style>

@@ -1080,7 +1080,6 @@ async function playTts(speed: TtsSpeed) {
       audio.onerror = () => {
         isSpeaking.value = false
         URL.revokeObjectURL(url)
-        ElMessage.error('音频播放失败')
       }
       await audio.play()
     } else {

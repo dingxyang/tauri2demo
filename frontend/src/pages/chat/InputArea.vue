@@ -1,8 +1,16 @@
 <template>
   <div class="input-area">
+    <div class="language-bar">
+      <button
+        v-for="lang in languages"
+        :key="lang.value"
+        :class="['lang-tag', { active: inputLanguage === lang.value }]"
+        @click="$emit('change-language', lang.value)"
+      >{{ lang.label }}</button>
+    </div>
     <template v-if="mode === 'text'">
       <div class="input-wrapper">
-        <textarea ref="textareaRef" v-model="inputText" class="chat-input" placeholder="发消息" rows="1" @input="autoResize" @keydown="handleKeydown"></textarea>
+        <textarea ref="textareaRef" v-model="inputText" class="chat-input" :placeholder="placeholder" rows="1" @input="autoResize" @keydown="handleKeydown"></textarea>
         <button v-if="inputText.trim()" class="input-action-btn send-btn" @click="sendText" title="发送">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -22,9 +30,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, computed } from 'vue';
 import VoiceButton from './VoiceButton.vue';
-const emit = defineEmits<{ 'send-text': [text: string]; 'start-recording': []; 'send-recording': []; 'cancel-recording': [] }>();
+
+const props = defineProps<{
+  inputLanguage: string;
+}>();
+
+const emit = defineEmits<{
+  'send-text': [text: string];
+  'start-recording': [];
+  'send-recording': [];
+  'cancel-recording': [];
+  'change-language': [lang: string];
+}>();
+
+const languages = [
+  { value: 'es', label: '西语' },
+  { value: 'zh', label: '中文' },
+  { value: 'en', label: '英文' },
+];
+
+const placeholder = computed(() => {
+  const map: Record<string, string> = { es: 'Escribe en español', zh: '用中文输入', en: 'Type in English' };
+  return map[props.inputLanguage] || '发消息';
+});
+
 const mode = ref<'text' | 'voice'>('text');
 const inputText = ref('');
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
@@ -46,7 +77,10 @@ defineExpose({ mode, switchToVoice: () => { mode.value = 'voice'; }, switchToTex
 </script>
 
 <style scoped>
-.input-area { padding: 12px 16px; background: #fff; border-top: 1px solid #ebeef5; flex-shrink: 0; }
+.input-area { padding: 8px 16px 12px; background: #fff; border-top: 1px solid #ebeef5; flex-shrink: 0; }
+.language-bar { display: flex; gap: 6px; margin-bottom: 8px; }
+.lang-tag { padding: 2px 10px; border: 1px solid #dcdfe6; border-radius: 12px; background: #fff; color: #909399; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.lang-tag.active { background: #2B5CE6; color: #fff; border-color: #2B5CE6; }
 .input-wrapper { display: flex; align-items: flex-end; background: #f5f5f5; border-radius: 24px; padding: 4px 4px 4px 16px; border: 1px solid #dcdfe6; }
 .chat-input { flex: 1; border: none; outline: none; background: transparent; font-size: 15px; line-height: 20px; resize: none; padding: 8px 0; max-height: 70px; font-family: inherit; color: #1a1a1a; }
 .chat-input::placeholder { color: #999; }
