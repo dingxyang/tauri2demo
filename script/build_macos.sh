@@ -264,19 +264,36 @@ echo -e "${CYAN}═════════════════════�
 echo ""
 
 # ─── 导出 Android 环境变量（仅 Android）─────────────────────────────────────
-if [[ "$PLATFORM" == "android" ]]; then
-  export ANDROID_HOME
-  export ANDROID_NDK_HOME
-  export PATH="${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/tools:${PATH}"
+# if [[ "$PLATFORM" == "android" ]]; then
+#   export ANDROID_HOME
+#   export ANDROID_NDK_HOME
+#   export PATH="${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/tools:${PATH}"
 
-  # Force real C compiler — /usr/local/bin/cc may alias claude CLI
-  export CC=/usr/bin/cc
-  export CXX=/usr/bin/c++
+#   # Force real C compiler — /usr/local/bin/cc may alias claude CLI
+#   export CC=/usr/bin/cc
+#   export CXX=/usr/bin/c++
 
-  # 限制并发，避免 OOM
-  export CARGO_BUILD_JOBS=1
-  export GRADLE_OPTS="-Dorg.gradle.workers.max=1"
-  echo -e "${YELLOW}  CARGO_BUILD_JOBS=1, Gradle workers=1 (避免内存溢出)${RESET}"
+#   # 限制并发，避免 OOM
+#   export CARGO_BUILD_JOBS=1
+#   export GRADLE_OPTS="-Dorg.gradle.workers.max=1"
+#   echo -e "${YELLOW}  CARGO_BUILD_JOBS=1, Gradle workers=1 (避免内存溢出)${RESET}"
+#   echo ""
+# fi
+
+
+
+# ─── 替换 Android 签名和权限文件 ────────────────────────────────────────────────
+# build android 时，需要用 script/android-permission-sign/ 下的文件
+# 替换 gen/android/app/ 中对应的文件，以加入签名配置和录音权限
+if [[ "$COMMAND" == "build" && "$PLATFORM" == "android" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  GEN_ANDROID_APP="$(cd "$(dirname "$0")/.." && pwd)/backend/src-tauri/gen/android/app"
+
+  echo -e "${CYAN}[*] 替换 Android 签名和权限文件${RESET}"
+  cp "${SCRIPT_DIR}/android-permission-sign/build.gradle.kts" "${GEN_ANDROID_APP}/build.gradle.kts"
+  ok "build.gradle.kts 已替换"
+  cp "${SCRIPT_DIR}/android-permission-sign/AndroidManifest.xml" "${GEN_ANDROID_APP}/src/main/AndroidManifest.xml"
+  ok "AndroidManifest.xml 已替换"
   echo ""
 fi
 

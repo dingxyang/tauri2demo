@@ -22,10 +22,6 @@ dist/
 pnpm-lock.yaml
 
 backend/src-tauri/gen/android/**
-!backend/src-tauri/gen/android/app/
-!backend/src-tauri/gen/android/app/src/
-!backend/src-tauri/gen/android/app/src/main/
-!backend/src-tauri/gen/android/app/src/main/AndroidManifest.xml
 backend/src-tauri/gen/ios
 
 .superpowers
