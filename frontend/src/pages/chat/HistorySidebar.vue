@@ -13,7 +13,14 @@
         <div class="session-list">
           <div v-for="session in sessions" :key="session.id" :class="['session-item', { active: session.id === activeSessionId }]" @click="$emit('select-session', session.id)">
             <div class="session-info">
-              <div class="session-title">{{ session.title }}</div>
+              <div class="session-title">
+                <span v-if="session.scenarioId" class="scenario-badge" title="情景对话">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+                  </svg>
+                </span>
+                {{ session.title }}
+              </div>
               <div class="session-date">{{ formatDate(session.updatedAt) }}</div>
             </div>
             <button class="delete-btn" @click.stop="$emit('delete-session', session.id)" title="删除">
@@ -53,7 +60,8 @@ function formatDate(timestamp: number): string {
 .session-item:active { background: #f9f9f9; }
 .session-item.active { background: #f0f4ff; }
 .session-info { flex: 1; min-width: 0; }
-.session-title { font-size: 15px; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-title { font-size: 15px; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.scenario-badge { display: inline-flex; align-items: center; color: #2B5CE6; flex-shrink: 0; }
 .session-date { font-size: 12px; color: #999; margin-top: 2px; }
 .delete-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; cursor: pointer; color: #c0c4cc; border-radius: 4px; flex-shrink: 0; }
 .delete-btn:active { color: #f56c6c; background: #fef0f0; }

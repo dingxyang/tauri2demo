@@ -2,15 +2,20 @@
   <div class="chat-page">
     <ChatHeader
       :title="activeSession?.title || '对话'"
+      :is-scenario="isScenario"
       @toggle-history="showHistory = true"
       @new-session="handleNewSession"
       @open-settings="showPromptSettings = true"
+      @open-scenarios="showScenarioBrowser = true"
+      @open-reference="showReferenceDialogue = true"
     />
     <MessageList
       ref="messageListRef"
       :messages="activeSession?.messages || []"
       :playing-message-id="playingMessageId"
+      :show-scenario-entry="true"
       @play-tts="handlePlayTts"
+      @open-scenarios="showScenarioBrowser = true"
     />
     <InputArea
       ref="inputAreaRef"
@@ -30,14 +35,25 @@
     <PromptSettings
       :visible="showPromptSettings"
       :system-prompt="activeSession?.systemPrompt || ''"
+      :is-scenario="isScenario"
       @close="showPromptSettings = false"
       @save="handleSavePrompt"
+    />
+    <ScenarioBrowser
+      :visible="showScenarioBrowser"
+      @close="showScenarioBrowser = false"
+      @select-scenario="handleSelectScenario"
+    />
+    <ReferenceDialogue
+      :visible="showReferenceDialogue"
+      :scenario-id="activeSession?.scenarioId"
+      @close="showReferenceDialogue = false"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated } from 'vue';
+import { ref, computed, onMounted, onActivated } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
@@ -48,7 +64,10 @@ import MessageList from './MessageList.vue';
 import InputArea from './InputArea.vue';
 import HistorySidebar from './HistorySidebar.vue';
 import PromptSettings from './PromptSettings.vue';
+import ScenarioBrowser from './ScenarioBrowser.vue';
+import ReferenceDialogue from './ReferenceDialogue.vue';
 import type { Message } from '@/stores/chat';
+import type { Scenario } from './data/scenarios';
 
 defineOptions({ name: 'Chat' });
 
@@ -63,10 +82,14 @@ const messageListRef = ref<InstanceType<typeof MessageList> | null>(null);
 const inputAreaRef = ref<InstanceType<typeof InputArea> | null>(null);
 const showHistory = ref(false);
 const showPromptSettings = ref(false);
+const showScenarioBrowser = ref(false);
+const showReferenceDialogue = ref(false);
 const isLoading = ref(false);
 const currentAbortController = ref<AbortController | null>(null);
 const playingMessageId = ref<string | null>(null);
 const currentAudio = ref<HTMLAudioElement | null>(null);
+
+const isScenario = computed(() => !!activeSession?.scenarioId);
 
 onMounted(() => {
   chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || '');
@@ -208,6 +231,12 @@ function handleNewSession() {
 function handleSelectSession(id: string) { chatStore.switchSession(id); showHistory.value = false; }
 function handleDeleteSession(id: string) { chatStore.deleteSession(id); chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || ''); }
 function handleSavePrompt(prompt: string) { chatStore.updateSystemPrompt(prompt); }
+
+// === Scenario management ===
+function handleSelectScenario(scenario: Scenario) {
+  chatStore.createScenarioSession(scenario);
+  showScenarioBrowser.value = false;
+}
 </script>
 
 <style scoped>

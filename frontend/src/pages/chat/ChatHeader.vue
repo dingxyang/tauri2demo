@@ -8,7 +8,21 @@
     </button>
     <span class="header-title">{{ title }}</span>
     <div class="header-right">
-      <button class="header-btn" @click="$emit('new-session')" title="新建对话">
+      <button class="header-btn" @click="$emit('open-scenarios')" title="情景对话">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+          <line x1="9" y1="9" x2="9.01" y2="9"/>
+          <line x1="15" y1="9" x2="15.01" y2="9"/>
+        </svg>
+      </button>
+      <button v-if="isScenario" class="header-btn" @click="$emit('open-reference')" title="参考对话">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </button>
+      <button v-else class="header-btn" @click="$emit('new-session')" title="新建对话">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
@@ -24,8 +38,18 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ title: string }>();
-defineEmits<{ 'toggle-history': []; 'new-session': []; 'open-settings': [] }>();
+defineProps<{
+  title: string;
+  isScenario: boolean;
+}>();
+
+defineEmits<{
+  'toggle-history': [];
+  'new-session': [];
+  'open-settings': [];
+  'open-scenarios': [];
+  'open-reference': [];
+}>();
 </script>
 
 <style scoped>

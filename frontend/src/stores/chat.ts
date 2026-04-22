@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import type { Scenario } from "@/pages/chat/data/scenarios";
+import { generateScenarioSystemPrompt } from "@/pages/chat/utils/scenarioPrompt";
 
 export interface Message {
   id: string;
@@ -16,6 +18,7 @@ export interface ChatSession {
   messages: Message[];
   createdAt: number;
   updatedAt: number;
+  scenarioId?: string;
 }
 
 const STORAGE_KEY = "chatSessions";
@@ -109,9 +112,10 @@ export const useChatStore = defineStore("chat", () => {
     session.messages.push(msg);
     session.updatedAt = Date.now();
 
-    // Update title from first user message
+    // Update title from first user message (skip for scenario sessions)
     if (
       role === "user" &&
+      !session.scenarioId &&
       session.messages.filter((m) => m.role === "user").length === 1
     ) {
       session.title = content.slice(0, 30) || "新对话";
@@ -142,6 +146,25 @@ export const useChatStore = defineStore("chat", () => {
     saveSessions();
   }
 
+  function createScenarioSession(scenario: Scenario): ChatSession {
+    const systemPrompt = generateScenarioSystemPrompt(scenario);
+    const session = createSession(systemPrompt);
+    session.scenarioId = scenario.id;
+    session.title = scenario.titleEs || scenario.title;
+
+    // Inject the AI opening message directly (no API call)
+    const openingMsg: Message = {
+      id: generateId(),
+      role: "assistant",
+      content: scenario.openingMessage,
+      createdAt: Date.now(),
+    };
+    session.messages.push(openingMsg);
+    session.updatedAt = Date.now();
+    saveSessions();
+    return session;
+  }
+
   function ensureActiveSession(defaultPrompt = ""): ChatSession {
     if (activeSession.value) return activeSession.value;
     // Try to restore from sorted sessions
@@ -166,6 +189,7 @@ export const useChatStore = defineStore("chat", () => {
     addMessage,
     updateLastAssistantMessage,
     updateSystemPrompt,
+    createScenarioSession,
     ensureActiveSession,
     saveSessions,
   };
