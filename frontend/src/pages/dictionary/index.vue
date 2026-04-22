@@ -26,6 +26,7 @@
       <div class="button-container">
         <el-button @click="aiChat(RequestType.CN_TO_ES)" :disabled="isLoading">中文翻译</el-button>
         <el-button @click="aiChat(RequestType.ES_TO_CN)" :disabled="isLoading">西语翻译</el-button>
+        <el-button @click="goToScan" :disabled="isLoading">图片识别</el-button>
         <!-- <el-button @click="aiChat(RequestType.CHAT)" :disabled="isLoading">AI对话</el-button> -->
         <el-button @click="clearInput" :disabled="isLoading">清空</el-button>
         <el-button v-if="isLoading" @click="abortRequest" type="danger">终止</el-button>
@@ -149,6 +150,9 @@ const processHighlightedContent = async (html: string) => {
 // 跳转至设置页面
 const goToSettings = () => {
   router.push({ path: "/settings" });
+};
+const goToScan = () => {
+  router.push({ path: "/scan" });
 };
 
 
