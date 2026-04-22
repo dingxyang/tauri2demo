@@ -70,7 +70,14 @@ pub fn start_recording(state: &RecordingState) -> Result<(), String> {
                 }
             },
             |err| {
-                eprintln!("audio input error: {}", err);
+                // CoreAudio device-state warnings during stream teardown are harmless
+                let msg = err.to_string();
+                if !msg.contains("kAudioHardwareBadDeviceError")
+                    && !msg.contains("Could not determine whether Device is playing")
+                    && !msg.contains("Could not resume")
+                {
+                    eprintln!("audio input error: {}", err);
+                }
             },
             None,
         )

@@ -20,7 +20,8 @@ pub fn run() {
             greet,
             commands::start_recording,
             commands::stop_recording_and_evaluate,
-            commands::evaluate_mp3_file
+            commands::evaluate_mp3_file,
+            commands::tts_synthesize
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
