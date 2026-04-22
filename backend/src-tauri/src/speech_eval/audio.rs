@@ -1,6 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Stream;
-use mp3lame_encoder::{Builder, FlushNoGap, MonoPcm};
+use shine_rs::{Mp3EncoderConfig, StereoMode};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -238,34 +238,17 @@ fn resample(input: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
 
 /// 将 PCM (16kHz, 16bit, mono) 编码为 MP3
 pub fn encode_pcm_to_mp3(pcm_data: &[i16]) -> Result<Vec<u8>, String> {
-    println!("[speech-eval] encoder: creating builder...");
-    let mut encoder = Builder::new()
-        .ok_or("failed to create mp3 encoder (Builder::new returned None)")?;
-
-    println!("[speech-eval] encoder: setting channels=1, sample_rate=16000");
-    encoder.set_num_channels(1)
-        .map_err(|e| format!("set channels error: {:?}", e))?;
-    encoder.set_sample_rate(16000)
-        .map_err(|e| format!("set sample rate error: {:?}", e))?;
-    encoder.set_quality(mp3lame_encoder::Quality::Best)
-        .map_err(|e| format!("set quality error: {:?}", e))?;
-
-    println!("[speech-eval] encoder: building...");
-    let mut encoder = encoder.build()
-        .map_err(|e| format!("build encoder error: {:?}", e))?;
+    println!("[speech-eval] encoder: creating encoder (16kHz mono 64kbps)...");
+    let config = Mp3EncoderConfig::new()
+        .sample_rate(16000)
+        .bitrate(64)
+        .channels(1)
+        .stereo_mode(StereoMode::Mono);
 
     println!("[speech-eval] encoder: encoding {} samples...", pcm_data.len());
-    let input = MonoPcm(pcm_data);
-    let mut mp3_out = Vec::with_capacity(mp3lame_encoder::max_required_buffer_size(pcm_data.len()));
+    let mp3_data = shine_rs::encode_pcm_to_mp3(config, pcm_data)
+        .map_err(|e| format!("mp3 encode error: {:?}", e))?;
 
-    encoder.encode_to_vec(input, &mut mp3_out)
-        .map_err(|e| format!("encode error: {:?}", e))?;
-
-    println!("[speech-eval] encoder: flushing...");
-    mp3_out.reserve(mp3lame_encoder::max_required_buffer_size(0));
-    encoder.flush_to_vec::<FlushNoGap>(&mut mp3_out)
-        .map_err(|e| format!("flush error: {:?}", e))?;
-
-    println!("[speech-eval] encoder: done, {} bytes", mp3_out.len());
-    Ok(mp3_out)
+    println!("[speech-eval] encoder: done, {} bytes", mp3_data.len());
+    Ok(mp3_data)
 }
