@@ -111,21 +111,46 @@ fi
 # ─── 3. ANDROID_HOME ──────────────────────────────────────────────────────────
 echo -e "${CYAN}[3/8] ANDROID_HOME${RESET}"
 ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+
+# 清理值中可能存在的引号（setx 命令可能将引号写入环境变量值）
+ANDROID_HOME="${ANDROID_HOME#\"}"
+ANDROID_HOME="${ANDROID_HOME%\"}"
+
+# 将 Windows 格式路径转换为 Unix 格式（Git Bash 环境）
+if [[ -n "$ANDROID_HOME" ]]; then
+  # 检测是否为 Windows 格式路径（包含反斜杠或 X:\ 格式）
+  if [[ "$ANDROID_HOME" == *'\\'* ]] || [[ "$ANDROID_HOME" =~ ^[A-Za-z]: ]]; then
+    AH_UNIX="$(cygpath -u "$ANDROID_HOME" 2>/dev/null || echo "")"
+    if [[ -n "$AH_UNIX" ]]; then
+      ANDROID_HOME="$AH_UNIX"
+    fi
+  fi
+fi
+
 if [[ -n "$ANDROID_HOME" && -d "$ANDROID_HOME" ]]; then
   ok "ANDROID_HOME=$ANDROID_HOME"
 else
-  # Windows 默认 Android SDK 路径
-  WIN_SDK_PATH="$LOCALAPPDATA/Android/Sdk"
-  if [[ -z "$WIN_SDK_PATH" ]]; then
-    WIN_SDK_PATH="$(cygpath -u "$LOCALAPPDATA/Android/Sdk" 2>/dev/null || echo "$USERPROFILE/AppData/Local/Android/Sdk")"
-  fi
-  if [[ -d "$WIN_SDK_PATH" ]]; then
-    export ANDROID_HOME="$WIN_SDK_PATH"
-    warn "ANDROID_HOME 未设置，使用默认路径：$ANDROID_HOME"
-    warn "建议添加到系统环境变量：ANDROID_HOME=%LOCALAPPDATA%\\Android\\Sdk"
-  else
-    fail "ANDROID_HOME 未设置且默认路径不存在。"
-    fail "请通过 Android Studio 安装 Android SDK，再设置 ANDROID_HOME 环境变量。"
+  # 如果仍未找到，尝试已知的 SDK 安装路径
+  CANDIDATE_PATHS=(
+    "C:/DevDisk/DevTools/AndroidSDK"
+    "$LOCALAPPDATA/Android/Sdk"
+    "$HOME/AppData/Local/Android/Sdk"
+  )
+
+  FOUND_SDK=0
+  for CANDIDATE in "${CANDIDATE_PATHS[@]}"; do
+    if [[ -d "$CANDIDATE" ]]; then
+      export ANDROID_HOME="$CANDIDATE"
+      warn "ANDROID_HOME 未设置，使用检测到的路径：$ANDROID_HOME"
+      warn "建议运行 ./script/install_android_sdk_bywin.sh 设置环境变量"
+      FOUND_SDK=1
+      break
+    fi
+  done
+
+  if [[ "$FOUND_SDK" -eq 0 ]]; then
+    fail "ANDROID_HOME 未设置且未检测到 Android SDK 安装路径。"
+    fail "请运行 ./script/install_android_sdk_bywin.sh 安装 SDK，或手动设置 ANDROID_HOME 环境变量。"
   fi
 fi
 
@@ -149,18 +174,41 @@ fi
 
 # ─── 5. NDK ───────────────────────────────────────────────────────────────────
 echo -e "${CYAN}[5/8] Android NDK${RESET}"
+# NDK 可能安装在两种目录结构中：
+#   1. ndk/<version>/ — 新版 NDK（推荐，通过 sdkmanager 安装 ndk;27.x.x）
+#   2. ndk-bundle/     — 旧版 NDK（已废弃，通过 ndk-bundle 包安装）
 NDK_DIR="${ANDROID_HOME}/ndk"
+NDK_BUNDLE_DIR="${ANDROID_HOME}/ndk-bundle"
+NDK_PATH=""
+NDK_VER=""
+
 if [[ -d "$NDK_DIR" ]]; then
   NDK_VER=$(ls "$NDK_DIR" | sort -V | tail -1)
-  NDK_PATH="${NDK_DIR}/${NDK_VER}"
-  export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$NDK_PATH}"
-  if [[ -z "${NDK_VER}" ]]; then
-    fail "NDK 目录存在但为空，请在 Android Studio SDK Manager → NDK (Side by side) 中安装。"
-  else
-    ok "NDK 版本：$NDK_VER → $NDK_PATH"
+  if [[ -n "$NDK_VER" ]]; then
+    NDK_PATH="${NDK_DIR}/${NDK_VER}"
   fi
+fi
+
+# 如果 ndk/ 目录不存在或为空，尝试 ndk-bundle/
+if [[ -z "$NDK_PATH" && -d "$NDK_BUNDLE_DIR" ]]; then
+  # 从 source.properties 读取版本号
+  if [[ -f "${NDK_BUNDLE_DIR}/source.properties" ]]; then
+    NDK_VER=$(grep 'Pkg.Revision' "${NDK_BUNDLE_DIR}/source.properties" 2>/dev/null | awk '{print $NF}' || echo "unknown")
+  else
+    NDK_VER="ndk-bundle"
+  fi
+  NDK_PATH="$NDK_BUNDLE_DIR"
+  warn "检测到旧版 ndk-bundle（版本 $NDK_VER），建议安装新版 NDK："
+  warn "  sdkmanager --install 'ndk;27.0.12077973'"
+fi
+
+if [[ -n "$NDK_PATH" ]]; then
+  export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$NDK_PATH}"
+  ok "NDK 版本：$NDK_VER → $NDK_PATH"
 else
-  fail "未找到 NDK（路径：$NDK_DIR），请在 Android Studio SDK Manager → NDK (Side by side) 中安装。"
+  fail "未找到 NDK（路径：$NDK_DIR 和 $NDK_BUNDLE_DIR 均不存在），请运行："
+  fail "  ./script/install_android_sdk_bywin.sh"
+  fail "或在 Android Studio SDK Manager → NDK (Side by side) 中安装。"
 fi
 
 # ─── 6. Rust Android targets ──────────────────────────────────────────────────

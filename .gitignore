@@ -29,3 +29,4 @@ backend/src-tauri/gen/android/**
 backend/src-tauri/gen/ios
 
 .superpowers
+.claude/settings.local.json

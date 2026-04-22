@@ -73,9 +73,10 @@ else
 fi
 
 # 推导 ANDROID_HOME（sdkmanager 所在 SDK 根目录）
-# 路径格式：.../cmdline-tools/latest/bin/sdkmanager.bat → 去掉 /cmdline-tools/latest/bin/sdkmanager.bat
+# 路径格式：.../AndroidSDK/cmdline-tools/latest/bin/sdkmanager.bat
+#   从 bin/ 向上 3 级：bin → latest → cmdline-tools → AndroidSDK（SDK 根目录）
 SDKMANAGER_DIR="$(cd "$(dirname "$SDKMANAGER")" && pwd)"
-ANDROID_HOME="$(cd "$SDKMANAGER_DIR/../../../.." && pwd)"
+ANDROID_HOME="$(cd "$SDKMANAGER_DIR/../../.." && pwd)"
 ok "ANDROID_HOME 推导为：$ANDROID_HOME"
 
 # ─── 2. Check Java ────────────────────────────────────────────────────────────
@@ -101,14 +102,14 @@ echo -e "${CYAN}[3/4] 准备安装的 SDK 组件${RESET}"
 # Tauri 2 Android 编译所需组件（对应 build_bywin.sh 的检查项）
 # - platform-tools: 提供 adb（检查项 4）
 # - cmdline-tools;latest: 提供 sdkmanager（检查项 4）
-# - ndk-bundle: 提供 NDK（检查项 5）— 安装最新版 NDK
+# - ndk;27.0.12077973: 提供 NDK（检查项 5）— 指定版本，ndk-bundle 已废弃且版本过旧
 # - platforms;android-34: Android API 34 平台（Gradle 编译依赖）
 # - build-tools;34.0.0: Android 构建工具（Gradle 编译依赖）
 
 SDK_PACKAGES=(
   "platform-tools"
   "cmdline-tools;latest"
-  "ndk-bundle"
+  "ndk;27.0.12077973"
   "platforms;android-34"
   "build-tools;34.0.0"
 )
@@ -121,27 +122,35 @@ echo ""
 # ─── 4. Install ───────────────────────────────────────────────────────────────
 echo -e "${CYAN}[4/4] 安装 SDK 组件${RESET}"
 
-# sdkmanager 在 Git Bash 中需要通过 cmd.exe 调用 .bat 文件
+# sdkmanager 是 .bat 文件，在 Git Bash 中需要通过 cmd.exe /c 调用
+# 但 MSYS2/Git Bash 会自动将 /c /s 等参数转成 Windows 路径，导致 cmd.exe 行为异常
+# 解决方案：设置 MSYS_NO_PATHCONV=1 禁止 MSYS 路径自动转换
+export MSYS_NO_PATHCONV=1
+
 # 将 Unix 路径转换为 Windows 路径
 SDKMANAGER_WIN="$(cygpath -w "$SDKMANAGER" 2>/dev/null || echo "$SDKMANAGER")"
+SDK_ROOT_WIN="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
 
-# 构建安装参数
+# 构建安装参数（空格分隔）
 INSTALL_ARGS="${SDK_PACKAGES[*]}"
+
+# sdkmanager 需要接受许可协议：
+#   - 交互模式：用户手动输入 y
+#   - 静默模式：通过 yes 管道自动输入 y
+# 注意：使用 yes 管道而非 <<< "y"，因为 cmd.exe 不支持 bash stdin 重定向
 
 if [[ "$AUTO_ACCEPT" -eq 1 ]]; then
   echo -e "${YELLOW}  静默模式：自动接受所有许可协议${RESET}"
   echo ""
-  cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")" $INSTALL_ARGS <<< "y" || {
-    # 某些版本的 sdkmanager 不支持 stdin 管道传 y，尝试 --no-interactive
-    cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")" --no-interactive $INSTALL_ARGS || {
-      fail "SDK 组件安装失败"
-      exit 1
-    }
+  yes | cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$SDK_ROOT_WIN" $INSTALL_ARGS || {
+    fail "SDK 组件安装失败"
+    exit 1
   }
 else
   echo -e "${YELLOW}  交互模式：安装过程中需要手动接受许可协议${RESET}"
+  echo -e "${YELLOW}  （如需自动接受，请使用 -y 参数重新运行）${RESET}"
   echo ""
-  cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")" $INSTALL_ARGS || {
+  cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$SDK_ROOT_WIN" $INSTALL_ARGS || {
     fail "SDK 组件安装失败"
     exit 1
   }
@@ -191,19 +200,164 @@ else
   done
 fi
 
+# ─── 6. Set environment variables ─────────────────────────────────────────────
+echo -e "${CYAN}[6/6] 配置环境变量${RESET}"
+
+# 获取 Windows 格式的路径
+ANDROID_HOME_WIN="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
+
+# 检测 NDK 版本，用于设置 ANDROID_NDK_HOME
+# NDK 可能安装在 ndk/<version>/ 或 ndk-bundle/ 中
+NDK_DIR="${ANDROID_HOME}/ndk"
+NDK_BUNDLE_DIR="${ANDROID_HOME}/ndk-bundle"
+NDK_VER=""
+if [[ -d "$NDK_DIR" ]]; then
+  NDK_VER=$(ls "$NDK_DIR" | sort -V | tail -1)
+fi
+if [[ -z "$NDK_VER" && -d "$NDK_BUNDLE_DIR" ]]; then
+  # 从 source.properties 读取版本号
+  if [[ -f "${NDK_BUNDLE_DIR}/source.properties" ]]; then
+    NDK_VER=$(grep 'Pkg.Revision' "${NDK_BUNDLE_DIR}/source.properties" 2>/dev/null | awk '{print $NF}' || echo "")
+  fi
+fi
+
+# --- 设置 ANDROID_HOME ---
+NEED_SET_ANDROID_HOME=0
+# 检查当前系统环境变量是否已正确设置
+CURRENT_ANDROID_HOME_WIN="$(cmd.exe /c "echo %ANDROID_HOME%" 2>/dev/null | tr -d '\r')"
+if [[ "$CURRENT_ANDROID_HOME_WIN" == "%ANDROID_HOME%" || "$CURRENT_ANDROID_HOME_WIN" != "$ANDROID_HOME_WIN" ]]; then
+  NEED_SET_ANDROID_HOME=1
+fi
+
+if [[ "$NEED_SET_ANDROID_HOME" -eq 1 ]]; then
+  # setx 写入用户级永久环境变量（重启后生效）
+  MSYS_NO_PATHCONV=1 cmd.exe /c "setx ANDROID_HOME $ANDROID_HOME_WIN" &>/dev/null && {
+    ok "ANDROID_HOME 已写入用户环境变量：$ANDROID_HOME_WIN"
+    ok "（新开终端窗口后生效）"
+  } || {
+    warn "setx 设置 ANDROID_HOME 失败，请手动设置"
+    warn "  系统设置 → 环境变量 → 用户变量 → 新建 ANDROID_HOME = $ANDROID_HOME_WIN"
+  }
+else
+  ok "ANDROID_HOME 环境变量已正确设置：$ANDROID_HOME_WIN"
+fi
+
+# --- 设置 ANDROID_NDK_HOME ---
+if [[ -n "$NDK_VER" ]]; then
+  # 确定 NDK 实际路径（ndk/<version>/ 或 ndk-bundle/）
+  if [[ -d "${ANDROID_HOME}/ndk/${NDK_VER}" ]]; then
+    NDK_HOME_WIN="${ANDROID_HOME_WIN}\\ndk\\${NDK_VER}"
+  else
+    NDK_HOME_WIN="${ANDROID_HOME_WIN}\\ndk-bundle"
+  fi
+  NEED_SET_NDK_HOME=0
+  CURRENT_NDK_HOME_WIN="$(cmd.exe /c "echo %ANDROID_NDK_HOME%" 2>/dev/null | tr -d '\r')"
+  if [[ "$CURRENT_NDK_HOME_WIN" == "%ANDROID_NDK_HOME%" || "$CURRENT_NDK_HOME_WIN" != "$NDK_HOME_WIN" ]]; then
+    NEED_SET_NDK_HOME=1
+  fi
+
+  if [[ "$NEED_SET_NDK_HOME" -eq 1 ]]; then
+    MSYS_NO_PATHCONV=1 cmd.exe /c "setx ANDROID_NDK_HOME $NDK_HOME_WIN" &>/dev/null && {
+      ok "ANDROID_NDK_HOME 已写入用户环境变量：$NDK_HOME_WIN"
+      ok "（新开终端窗口后生效）"
+    } || {
+      warn "setx 设置 ANDROID_NDK_HOME 失败，请手动设置"
+      warn "  系统设置 → 环境变量 → 用户变量 → 新建 ANDROID_NDK_HOME = $NDK_HOME_WIN"
+    }
+  else
+    ok "ANDROID_NDK_HOME 环境变量已正确设置：$NDK_HOME_WIN"
+  fi
+else
+  warn "未检测到 NDK 版本，跳过 ANDROID_NDK_HOME 设置"
+fi
+
+# --- 设置 PATH（追加 platform-tools）---
+PLATFORM_TOOLS_WIN="${ANDROID_HOME_WIN}\\platform-tools"
+CURRENT_PATH="$(cmd.exe /c "echo %PATH%" 2>/dev/null | tr -d '\r')"
+if [[ "$CURRENT_PATH" != *"$PLATFORM_TOOLS_WIN"* ]]; then
+  # 追加到用户 PATH（setx 有 1024 字符限制，需谨慎）
+  # 获取当前用户 PATH（不含系统 PATH）
+  USER_PATH="$(powershell -Command "[Environment]::GetEnvironmentVariable('PATH','User')" 2>/dev/null | tr -d '\r')"
+  if [[ -n "$USER_PATH" ]]; then
+    NEW_USER_PATH="${USER_PATH};${PLATFORM_TOOLS_WIN}"
+  else
+    NEW_USER_PATH="$PLATFORM_TOOLS_WIN"
+  fi
+  # setx 限制 1024 字符，超出则跳过
+  if [[ ${#NEW_USER_PATH} -le 1024 ]]; then
+    MSYS_NO_PATHCONV=1 cmd.exe /c "setx PATH $NEW_USER_PATH" &>/dev/null && {
+      ok "PATH 已追加：$PLATFORM_TOOLS_WIN"
+      ok "（新开终端窗口后生效）"
+    } || {
+      warn "setx 设置 PATH 失败，请手动添加"
+      warn "  系统设置 → 环境变量 → 用户变量 → 编辑 PATH → 添加 $PLATFORM_TOOLS_WIN"
+    }
+  else
+    warn "用户 PATH 过长（${#NEW_USER_PATH} 字符），超出 setx 1024 字符限制"
+    warn "请手动添加到 PATH：$PLATFORM_TOOLS_WIN"
+  fi
+else
+  ok "PATH 已包含 platform-tools：$PLATFORM_TOOLS_WIN"
+fi
+
+# --- 修复已损坏的环境变量（值中包含多余引号）---
+# 之前版本的脚本使用 setx ANDROID_HOME "path"，导致值中包含双引号字符
+# 需要检测并重新设置，去掉引号
+echo -e "${CYAN}[修复] 检查并修复环境变量中的引号问题${RESET}"
+
+FIX_NEEDED=0
+CURRENT_ANDROID_HOME_RAW="$(cmd.exe /c "echo %ANDROID_HOME%" 2>/dev/null | tr -d '\r')"
+if [[ "$CURRENT_ANDROID_HOME_RAW" == \"*\" ]]; then
+  warn "ANDROID_HOME 值包含多余引号：$CURRENT_ANDROID_HOME_RAW"
+  FIX_NEEDED=1
+fi
+
+CURRENT_NDK_HOME_RAW="$(cmd.exe /c "echo %ANDROID_NDK_HOME%" 2>/dev/null | tr -d '\r')"
+if [[ -n "${NDK_VER:-}" && "$CURRENT_NDK_HOME_RAW" == \"*\" ]]; then
+  warn "ANDROID_NDK_HOME 值包含多余引号：$CURRENT_NDK_HOME_RAW"
+  FIX_NEEDED=1
+fi
+
+if [[ "$FIX_NEEDED" -eq 1 ]]; then
+  echo -e "${YELLOW}  正在修复环境变量（去掉引号）...${RESET}"
+  # 重新设置 ANDROID_HOME（不带引号）
+  MSYS_NO_PATHCONV=1 cmd.exe /c "setx ANDROID_HOME $ANDROID_HOME_WIN" &>/dev/null && {
+    ok "ANDROID_HOME 已修复：$ANDROID_HOME_WIN"
+  } || {
+    warn "修复 ANDROID_HOME 失败，请手动检查"
+  }
+  # 重新设置 ANDROID_NDK_HOME（不带引号）
+  if [[ -n "${NDK_VER:-}" ]]; then
+    MSYS_NO_PATHCONV=1 cmd.exe /c "setx ANDROID_NDK_HOME $NDK_HOME_WIN" &>/dev/null && {
+      ok "ANDROID_NDK_HOME 已修复：$NDK_HOME_WIN"
+    } || {
+      warn "修复 ANDROID_NDK_HOME 失败，请手动检查"
+    }
+  fi
+  ok "环境变量引号问题已修复（新开终端窗口后生效）"
+else
+  ok "环境变量值无引号问题"
+fi
+
+# --- 当前 shell 立即生效 ---
+export ANDROID_HOME="$ANDROID_HOME"
+if [[ -n "$NDK_VER" ]]; then
+  if [[ -d "${ANDROID_HOME}/ndk/${NDK_VER}" ]]; then
+    export ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VER}"
+  else
+    export ANDROID_NDK_HOME="${ANDROID_HOME}/ndk-bundle"
+  fi
+fi
+export PATH="${ANDROID_HOME}/platform-tools:${PATH}"
+ok "当前 shell 环境变量已生效（export）"
+
 # ─── Summary ──────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}═══════════════════════════════════════════════════════${RESET}"
-echo -e "${GREEN}  Android SDK 安装完成！${RESET}"
+echo -e "${GREEN}  Android SDK 安装 & 配置完成！${RESET}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════${RESET}"
 echo ""
-echo -e "${YELLOW}  请确认以下环境变量已设置：${RESET}"
-echo "    ANDROID_HOME=$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
-echo ""
-echo -e "${YELLOW}  建议将以下内容添加到系统环境变量：${RESET}"
-echo "    ANDROID_HOME=$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
-echo "    ANDROID_NDK_HOME=%ANDROID_HOME%\\ndk\\<version>"
-echo "    PATH=%ANDROID_HOME%\\platform-tools;%PATH%"
+echo -e "${YELLOW}  注意：setx 设置的环境变量需要新开终端窗口才会生效${RESET}"
 echo ""
 echo -e "${CYAN}  现在可以运行构建脚本：${RESET}"
 echo "    ./script/build_bywin.sh dev"
