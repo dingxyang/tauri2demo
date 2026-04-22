@@ -1,9 +1,29 @@
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use std::path::Path;
 use tauri::State;
 
 use super::audio::{self, RecordingState};
 use super::client;
+use super::tts;
 use super::types::{EvalResult, XfConfig};
+
+#[tauri::command]
+pub async fn tts_synthesize(
+    text: String,
+    speed: i32,
+    vcn: String,
+    app_id: String,
+    api_key: String,
+    api_secret: String,
+) -> Result<String, String> {
+    let config = XfConfig { app_id, api_key, api_secret };
+    println!("[tts] synthesize request, text={} chars, speed={}, vcn={}", text.len(), speed, vcn);
+    let mp3_data = tts::xf_tts_synthesize(&config, &text, speed, &vcn).await?;
+    let b64 = BASE64.encode(&mp3_data);
+    println!("[tts] returning {} bytes as base64", mp3_data.len());
+    Ok(b64)
+}
 
 /// 尝试解析文件路径：先按原路径查找，若为相对路径则逐级向上查找
 fn resolve_file_path(file_path: &str) -> Result<std::path::PathBuf, String> {

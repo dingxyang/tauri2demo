@@ -29,80 +29,77 @@ const errorMsg = ref('')
 // TTS
 type PlayMode = 'normal' | 'slow'
 const playingMode = ref<PlayMode | null>(null)
+let currentAudio: HTMLAudioElement | null = null
 
-function getSpanishVoice(): SpeechSynthesisVoice | null {
-  const voices = speechSynthesis.getVoices()
-  return (
-    voices.find(v => v.lang === 'es-ES') ||
-    voices.find(v => v.lang.startsWith('es')) ||
-    null
-  )
+function stopPlayback() {
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio.src = ''
+    currentAudio = null
+  }
+  // Also stop native TTS if active
+  const nativeTTS = (window as any).NativeTTS
+  if (nativeTTS?.stop) nativeTTS.stop()
+  if ('speechSynthesis' in window) speechSynthesis.cancel()
+  playingMode.value = null
 }
 
-function play(mode: PlayMode) {
-  // Prefer Android native TTS bridge (injected by MainActivity)
-  const nativeTTS = (window as any).NativeTTS
-  if (nativeTTS && typeof nativeTTS.speak === 'function') {
-    if (playingMode.value === mode) {
-      nativeTTS.stop()
-      playingMode.value = null
-      return
-    }
-    nativeTTS.stop()
-    const rate = mode === 'slow' ? 0.65 : 1.0
-    playingMode.value = mode
-    nativeTTS.speak(sentence.value.sentence_original, 'es-ES', rate)
-    // Native TTS has no end callback, use a timeout estimate to reset state
-    setTimeout(() => {
-      if (playingMode.value === mode) playingMode.value = null
-    }, 10000)
-    return
-  }
-
-  if (!('speechSynthesis' in window)) {
-    ElMessage.warning('当前环境不支持语音播放')
-    return
-  }
+async function play(mode: PlayMode) {
+  // Toggle off if same mode
   if (playingMode.value === mode) {
-    speechSynthesis.cancel()
-    playingMode.value = null
+    stopPlayback()
     return
   }
-  speechSynthesis.cancel()
 
-  const doSpeak = () => {
-    const utter = new SpeechSynthesisUtterance(sentence.value.sentence_original)
-    const voice = getSpanishVoice()
-    if (voice) {
-      utter.voice = voice
-      utter.lang = voice.lang
-    } else {
-      utter.lang = 'es-ES'
-    }
-    utter.rate = mode === 'slow' ? 0.65 : 1.0
-    playingMode.value = mode
-    utter.onend = () => { playingMode.value = null }
-    utter.onerror = (e) => {
-      playingMode.value = null
-      if (e.error !== 'interrupted') {
-        ElMessage.warning('语音播放失败，请确认设备已安装西班牙语 TTS')
-      }
-    }
-    speechSynthesis.speak(utter)
+  const { appId, apiKey, apiSecret } = xfConfig.value
+  console.log('[tts] play called, mode=', mode, 'appId=', appId, 'text=', sentence.value.sentence_original)
+  if (!appId || !apiKey || !apiSecret) {
+    ElMessage.warning('请先在设置页面填写讯飞语音评测的 App ID、API Key 和 API Secret')
+    return
   }
 
-  // Android WebView voices may not be ready immediately
-  if (speechSynthesis.getVoices().length === 0) {
-    speechSynthesis.onvoiceschanged = () => {
-      speechSynthesis.onvoiceschanged = null
-      doSpeak()
+  stopPlayback()
+  playingMode.value = mode
+
+  try {
+    const speed = mode === 'slow' ? 30 : 50
+    const vcn = 'x2_spes_aurora'
+    console.log('[tts] invoking tts_synthesize...')
+    const b64 = await invoke<string>('tts_synthesize', {
+      text: sentence.value.sentence_original,
+      speed,
+      vcn,
+      appId,
+      apiKey,
+      apiSecret,
+    })
+    console.log('[tts] got base64 response, length=', b64.length)
+    const binary = atob(b64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    console.log('[tts] decoded audio bytes=', bytes.length)
+    const blob = new Blob([bytes], { type: 'audio/mp3' })
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    currentAudio = audio
+    audio.onended = () => {
+      playingMode.value = null
+      URL.revokeObjectURL(url)
+      currentAudio = null
     }
-    // Fallback: if onvoiceschanged never fires, try anyway after 300ms
-    setTimeout(() => {
-      if (playingMode.value !== mode) doSpeak()
-    }, 300)
-  } else {
-    doSpeak()
+    audio.onerror = () => {
+      playingMode.value = null
+      ElMessage.warning('音频播放失败')
+      URL.revokeObjectURL(url)
+      currentAudio = null
+    }
+    console.log('[tts] calling audio.play()...')
+    await audio.play()
+    console.log('[tts] audio.play() succeeded')
+  } catch (e: any) {
+    playingMode.value = null
+    console.error('[tts] error:', e)
+    ElMessage.warning('讯飞 TTS 失败: ' + e)
   }
 }
 
@@ -112,10 +109,7 @@ async function handleStart() {
     ElMessage.warning('请先在设置页面填写讯飞语音评测的 App ID、API Key 和 API Secret')
     return
   }
-  const nativeTTS = (window as any).NativeTTS
-  if (nativeTTS?.stop) nativeTTS.stop()
-  if ('speechSynthesis' in window) speechSynthesis.cancel()
-  playingMode.value = null
+  stopPlayback()
   errorMsg.value = ''
   evalResult.value = null
   try {
