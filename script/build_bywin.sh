@@ -7,6 +7,10 @@
 set -euo pipefail
 
 COMMAND="${1:-}"
+AUTO_YES=0
+if [[ "${2:-}" == "-y" || "${2:-}" == "--yes" ]]; then
+  AUTO_YES=1
+fi
 
 # ─── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -19,12 +23,39 @@ ok()   { echo -e "${GREEN}  ✓${RESET} $*"; }
 warn() { echo -e "${YELLOW}  ⚠${RESET} $*"; }
 fail() { echo -e "${RED}  ✗${RESET} $*"; FAILED=1; }
 
+# ─── Confirm & helpers ────────────────────────────────────────────────────────
+confirm_install() {
+  local desc="$1"
+  if [[ "$AUTO_YES" -eq 1 ]]; then
+    echo -e "${YELLOW}  自动确认：${desc}${RESET}"
+    return 0
+  fi
+  echo -e "${YELLOW}  ? ${desc} 是否自动安装？[Y/n]${RESET}"
+  read -r answer
+  case "$answer" in
+    n|N|no|No|NO) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+refresh_path() {
+  # 从 Windows 用户环境变量重新读取 PATH，使新安装的工具在当前 shell 可用
+  local win_path
+  win_path="$(powershell -Command "[Environment]::GetEnvironmentVariable('PATH','User')" 2>/dev/null | tr -d '\r')"
+  if [[ -n "$win_path" ]]; then
+    local unix_path
+    unix_path="$(cygpath -u "$win_path" 2>/dev/null || echo "$win_path")"
+    export PATH="${PATH}:${unix_path}"
+  fi
+}
+
 # ─── Usage ────────────────────────────────────────────────────────────────────
 if [[ "$COMMAND" != "dev" && "$COMMAND" != "build" ]]; then
-  echo -e "${CYAN}用法：${RESET} $0 <dev|build>"
+  echo -e "${CYAN}用法：${RESET} $0 <dev|build> [-y]"
   echo ""
   echo "  dev    启动 Tauri Android 开发模式（热重载）"
   echo "  build  构建 Android APK/AAB 发布包"
+  echo "  -y     自动确认所有安装提示（静默模式）"
   exit 1
 fi
 
@@ -85,7 +116,39 @@ if [[ "$FOUND_CC" -eq 0 ]]; then
 fi
 
 if [[ "$FOUND_CC" -eq 0 ]]; then
-  fail "请安装以下任一工具链："
+  # 尝试自动安装
+  if command -v pacman &>/dev/null; then
+    if confirm_install "通过 pacman 安装 mingw-w64-x86_64-gcc"; then
+      pacman -S --noconfirm mingw-w64-x86_64-gcc && {
+        ok "mingw-w64-x86_64-gcc 安装成功"
+        FOUND_CC=1
+      } || warn "pacman 安装失败"
+    fi
+  fi
+
+  if [[ "$FOUND_CC" -eq 0 ]] && command -v rustup &>/dev/null; then
+    if confirm_install "通过 rustup 安装 stable-x86_64-pc-windows-gnu 工具链"; then
+      rustup toolchain install stable-x86_64-pc-windows-gnu && {
+        ok "Rust GNU 工具链安装成功"
+        # 重新验证编译
+        TEST_SRC=$(mktemp /tmp/test_rust_XXXXXX.rs)
+        TEST_BIN=$(mktemp /tmp/test_rust_XXXXXX.exe)
+        echo 'fn main() {}' > "$TEST_SRC"
+        if rustc "$TEST_SRC" -o "$TEST_BIN" 2>/dev/null; then
+          ok "Rust GNU 工具链编译链接验证通过"
+          FOUND_CC=1
+        else
+          warn "Rust GNU 工具链安装后编译链接仍失败"
+        fi
+        rm -f "$TEST_SRC" "$TEST_BIN"
+      } || warn "rustup 工具链安装失败"
+    fi
+  fi
+fi
+
+if [[ "$FOUND_CC" -eq 0 ]]; then
+  fail "未找到 C/C++ 编译器，且自动安装失败或被跳过。"
+  fail "请手动安装以下任一工具链："
   fail "  • MSVC: https://visualstudio.microsoft.com/visual-cpp-build-tools/"
   fail "    安装时勾选「使用 C++ 的桌面开发」工作负载"
   fail "  • GNU: https://www.mingw-w64.org/ 或通过 MSYS2 安装"
@@ -101,11 +164,37 @@ if command -v java &>/dev/null; then
     ok "Java $JAVA_VER 已安装：$(which java)"
   else
     fail "检测到 Java $JAVA_VER，但需要 JDK 17+。"
-    fail "请从 https://adoptium.net/ 下载 JDK 17+，或通过 winget 安装：winget install EclipseAdoptium.Temurin.17.JDK"
+    if confirm_install "通过 winget 安装 Eclipse Adoptium Temurin JDK 17"; then
+      winget install EclipseAdoptium.Temurin.17.JDK --accept-package-agreements --accept-source-agreements && {
+        refresh_path
+        # 验证安装
+        if command -v java &>/dev/null; then
+          JAVA_VER=$(java -version 2>&1 | head -1 | grep -oE '[0-9]+' | head -1)
+          ok "Java $JAVA_VER 安装成功：$(which java)"
+        else
+          warn "JDK 已安装但当前 shell 未生效，请重新运行此脚本"
+        fi
+      } || warn "winget 安装 JDK 失败"
+    else
+      fail "请从 https://adoptium.net/ 下载 JDK 17+，或通过 winget 安装：winget install EclipseAdoptium.Temurin.17.JDK"
+    fi
   fi
 else
-  fail "未找到 Java，请从 https://adoptium.net/ 下载 JDK 17+"
-  fail "或运行：winget install EclipseAdoptium.Temurin.17.JDK"
+  fail "未找到 Java"
+  if confirm_install "通过 winget 安装 Eclipse Adoptium Temurin JDK 17"; then
+    winget install EclipseAdoptium.Temurin.17.JDK --accept-package-agreements --accept-source-agreements && {
+      refresh_path
+      if command -v java &>/dev/null; then
+        JAVA_VER=$(java -version 2>&1 | head -1 | grep -oE '[0-9]+' | head -1)
+        ok "Java $JAVA_VER 安装成功：$(which java)"
+      else
+        warn "JDK 已安装但当前 shell 未生效，请重新运行此脚本"
+      fi
+    } || warn "winget 安装 JDK 失败"
+  else
+    fail "请从 https://adoptium.net/ 下载 JDK 17+"
+    fail "或运行：winget install EclipseAdoptium.Temurin.17.JDK"
+  fi
 fi
 
 # ─── 3. ANDROID_HOME ──────────────────────────────────────────────────────────
@@ -150,7 +239,30 @@ else
 
   if [[ "$FOUND_SDK" -eq 0 ]]; then
     fail "ANDROID_HOME 未设置且未检测到 Android SDK 安装路径。"
-    fail "请运行 ./script/install_android_sdk_bywin.sh 安装 SDK，或手动设置 ANDROID_HOME 环境变量。"
+    if confirm_install "运行 ./script/install_android_sdk_bywin.sh 安装 SDK"; then
+      SCRIPT_DIR_TMP="$(cd "$(dirname "$0")" && pwd)"
+      bash "${SCRIPT_DIR_TMP}/install_android_sdk_bywin.sh" -y && {
+        # 安装脚本可能设置了 ANDROID_HOME，重新检测候选路径
+        for CANDIDATE in "${CANDIDATE_PATHS[@]}"; do
+          if [[ -d "$CANDIDATE" ]]; then
+            export ANDROID_HOME="$CANDIDATE"
+            FOUND_SDK=1
+            break
+          fi
+        done
+        # 也检查环境变量
+        if [[ "$FOUND_SDK" -eq 0 && -n "${ANDROID_HOME:-}" && -d "${ANDROID_HOME:-}" ]]; then
+          FOUND_SDK=1
+        fi
+        if [[ "$FOUND_SDK" -eq 1 ]]; then
+          ok "Android SDK 安装成功，ANDROID_HOME=$ANDROID_HOME"
+        else
+          warn "SDK 安装脚本已运行，但未检测到 SDK 路径，请重新运行此脚本"
+        fi
+      } || warn "install_android_sdk_bywin.sh 执行失败"
+    else
+      fail "请运行 ./script/install_android_sdk_bywin.sh 安装 SDK，或手动设置 ANDROID_HOME 环境变量。"
+    fi
   fi
 fi
 
@@ -160,7 +272,22 @@ echo -e "${CYAN}[4/8] Android SDK 工具（adb、sdkmanager）${RESET}"
 if [[ -f "${ANDROID_HOME}/platform-tools/adb.exe" ]]; then
   ok "adb 已找到：${ANDROID_HOME}/platform-tools/adb.exe"
 else
-  fail "未找到 adb.exe（路径：${ANDROID_HOME}/platform-tools/adb.exe），请在 Android Studio SDK Manager 中安装 platform-tools。"
+  fail "未找到 adb.exe（路径：${ANDROID_HOME}/platform-tools/adb.exe）"
+  SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager.bat"
+  if [[ -f "$SDKMANAGER" ]]; then
+    if confirm_install "通过 sdkmanager 安装 platform-tools"; then
+      export MSYS_NO_PATHCONV=1
+      SDKMANAGER_WIN="$(cygpath -w "$SDKMANAGER" 2>/dev/null || echo "$SDKMANAGER")"
+      SDK_ROOT_WIN="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
+      yes | cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$SDK_ROOT_WIN" "platform-tools" && {
+        ok "platform-tools 安装成功"
+      } || warn "sdkmanager 安装 platform-tools 失败"
+      unset MSYS_NO_PATHCONV
+    fi
+  else
+    warn "sdkmanager 未找到，无法自动安装 platform-tools"
+    warn "请在 Android Studio SDK Manager 中安装 platform-tools"
+  fi
 fi
 
 SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager.bat"
@@ -168,8 +295,33 @@ if [[ -f "$SDKMANAGER" ]]; then
   ok "sdkmanager 已找到：${SDKMANAGER}"
 else
   warn "sdkmanager 未找到：${SDKMANAGER}"
-  warn "请在 Android Studio SDK Manager > SDK Tools > Android SDK Command-line Tools 中安装"
-  warn "或运行：sdkmanager --install 'cmdline-tools;latest'"
+  # 检查是否有其他版本的 cmdline-tools
+  ALT_SDKMANAGER=""
+  if [[ -d "${ANDROID_HOME}/cmdline-tools" ]]; then
+    for dir in "${ANDROID_HOME}/cmdline-tools"/*/bin; do
+      if [[ -f "${dir}/sdkmanager.bat" ]]; then
+        ALT_SDKMANAGER="${dir}/sdkmanager.bat"
+        break
+      fi
+    done
+  fi
+
+  if [[ -n "$ALT_SDKMANAGER" ]]; then
+    if confirm_install "通过 sdkmanager 安装 cmdline-tools;latest"; then
+      export MSYS_NO_PATHCONV=1
+      ALT_SDKMANAGER_WIN="$(cygpath -w "$ALT_SDKMANAGER" 2>/dev/null || echo "$ALT_SDKMANAGER")"
+      SDK_ROOT_WIN="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
+      yes | cmd.exe /c "$ALT_SDKMANAGER_WIN" --sdk_root="$SDK_ROOT_WIN" "cmdline-tools;latest" && {
+        ok "cmdline-tools;latest 安装成功"
+        SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager.bat"
+      } || warn "sdkmanager 安装 cmdline-tools;latest 失败"
+      unset MSYS_NO_PATHCONV
+    fi
+  else
+    warn "无可用 sdkmanager，无法自动安装 cmdline-tools"
+    warn "请在 Android Studio SDK Manager > SDK Tools > Android SDK Command-line Tools 中安装"
+    warn "或运行：./script/install_android_sdk_bywin.sh"
+  fi
 fi
 
 # ─── 5. NDK ───────────────────────────────────────────────────────────────────
@@ -206,9 +358,32 @@ if [[ -n "$NDK_PATH" ]]; then
   export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$NDK_PATH}"
   ok "NDK 版本：$NDK_VER → $NDK_PATH"
 else
-  fail "未找到 NDK（路径：$NDK_DIR 和 $NDK_BUNDLE_DIR 均不存在），请运行："
-  fail "  ./script/install_android_sdk_bywin.sh"
-  fail "或在 Android Studio SDK Manager → NDK (Side by side) 中安装。"
+  fail "未找到 NDK（路径：$NDK_DIR 和 $NDK_BUNDLE_DIR 均不存在）"
+  SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager.bat"
+  if [[ -f "$SDKMANAGER" ]]; then
+    if confirm_install "通过 sdkmanager 安装 NDK 27.0.12077973"; then
+      export MSYS_NO_PATHCONV=1
+      SDKMANAGER_WIN="$(cygpath -w "$SDKMANAGER" 2>/dev/null || echo "$SDKMANAGER")"
+      SDK_ROOT_WIN="$(cygpath -w "$ANDROID_HOME" 2>/dev/null || echo "$ANDROID_HOME")"
+      yes | cmd.exe /c "$SDKMANAGER_WIN" --sdk_root="$SDK_ROOT_WIN" "ndk;27.0.12077973" && {
+        ok "NDK 安装成功"
+        # 重新检测 NDK
+        if [[ -d "$NDK_DIR" ]]; then
+          NDK_VER=$(ls "$NDK_DIR" | sort -V | tail -1)
+          if [[ -n "$NDK_VER" ]]; then
+            NDK_PATH="${NDK_DIR}/${NDK_VER}"
+            export ANDROID_NDK_HOME="$NDK_PATH"
+            ok "NDK 版本：$NDK_VER → $NDK_PATH"
+          fi
+        fi
+      } || warn "sdkmanager 安装 NDK 失败"
+      unset MSYS_NO_PATHCONV
+    fi
+  else
+    fail "sdkmanager 未找到，无法自动安装 NDK"
+    fail "请运行 ./script/install_android_sdk_bywin.sh"
+    fail "或在 Android Studio SDK Manager → NDK (Side by side) 中安装。"
+  fi
 fi
 
 # ─── 6. Rust Android targets ──────────────────────────────────────────────────
@@ -236,10 +411,17 @@ else
 
   if [[ ${#MISSING_TARGETS[@]} -gt 0 ]]; then
     echo ""
-    warn "请运行以下命令安装缺失的编译目标："
-    for t in "${MISSING_TARGETS[@]}"; do
-      echo "    rustup target add $t"
-    done
+    if confirm_install "安装缺失的 Rust Android 编译目标（${#MISSING_TARGETS[@]} 个）"; then
+      for t in "${MISSING_TARGETS[@]}"; do
+        echo -e "${CYAN}  rustup target add $t${RESET}"
+        rustup target add "$t" && ok "  $t 安装成功" || warn "  $t 安装失败，请手动运行：rustup target add $t"
+      done
+    else
+      warn "请手动运行以下命令安装缺失的编译目标："
+      for t in "${MISSING_TARGETS[@]}"; do
+        echo "    rustup target add $t"
+      done
+    fi
   fi
 fi
 
@@ -248,7 +430,14 @@ echo -e "${CYAN}[7/8] pnpm${RESET}"
 if command -v pnpm &>/dev/null; then
   ok "pnpm $(pnpm --version) 已安装"
 else
-  fail "未找到 pnpm，请安装：npm install -g pnpm"
+  fail "未找到 pnpm"
+  if confirm_install "通过 npm 全局安装 pnpm"; then
+    npm install -g pnpm && {
+      ok "pnpm $(pnpm --version) 安装成功"
+    } || warn "npm install -g pnpm 失败"
+  else
+    fail "请手动安装：npm install -g pnpm"
+  fi
 fi
 
 # ─── 8. keystore.properties ───────────────────────────────────────────────────
@@ -259,13 +448,24 @@ if [[ -f "$KEYSTORE_PROPS" ]]; then
   ok "keystore.properties 已找到：$KEYSTORE_PROPS"
 else
   fail "keystore.properties 未找到：$KEYSTORE_PROPS"
-  warn "请创建该文件，内容如下："
-  echo "    storeFile=C:/path/to/release.keystore"
-  echo "    storePassword=your_store_password"
-  echo "    keyAlias=your_key_alias"
-  echo "    keyPassword=your_key_password"
-  warn "生成 keystore："
-  echo "    keytool -genkeypair -v -keystore release.keystore -alias tauri2demo-key -keyalg RSA -keysize 2048 -validity 10000"
+  if confirm_install "创建默认 keystore.properties 文件"; then
+    # 确保目录存在
+    mkdir -p "$(dirname "$KEYSTORE_PROPS")" 2>/dev/null || true
+    cat > "$KEYSTORE_PROPS" <<'KEYSTORE_EOF'
+keyAlias=tauri2demo_key
+password=abc009988
+storeFile="C:\\SyncData\\release.keystore"
+KEYSTORE_EOF
+    ok "keystore.properties 已创建：$KEYSTORE_PROPS"
+  else
+    warn "请手动创建该文件，内容如下："
+    echo "    storeFile=C:/path/to/release.keystore"
+    echo "    storePassword=your_store_password"
+    echo "    keyAlias=your_key_alias"
+    echo "    keyPassword=your_key_password"
+    warn "生成 keystore："
+    echo "    keytool -genkeypair -v -keystore release.keystore -alias tauri2demo-key -keyalg RSA -keysize 2048 -validity 10000"
+  fi
 fi
 
 
