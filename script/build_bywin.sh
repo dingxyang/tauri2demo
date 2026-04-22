@@ -253,7 +253,8 @@ fi
 
 # ─── 8. keystore.properties ───────────────────────────────────────────────────
 echo -e "${CYAN}[8/8] keystore.properties${RESET}"
-KEYSTORE_PROPS="$(dirname "$0")/backend/src-tauri/gen/android/keystore.properties"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+KEYSTORE_PROPS="${SCRIPT_DIR}/../backend/src-tauri/gen/android/keystore.properties"
 if [[ -f "$KEYSTORE_PROPS" ]]; then
   ok "keystore.properties 已找到：$KEYSTORE_PROPS"
 else
@@ -264,7 +265,7 @@ else
   echo "    keyAlias=your_key_alias"
   echo "    keyPassword=your_key_password"
   warn "生成 keystore："
-  echo "    keytool -genkeypair -v -keystore release.keystore -alias my-key -keyalg RSA -keysize 2048 -validity 10000"
+  echo "    keytool -genkeypair -v -keystore release.keystore -alias tauri2demo-key -keyalg RSA -keysize 2048 -validity 10000"
 fi
 
 
