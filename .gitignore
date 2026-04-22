@@ -26,3 +26,5 @@ backend/src-tauri/gen/ios
 
 .superpowers
 .claude/settings.local.json
+
+.worktrees
