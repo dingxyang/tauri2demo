@@ -89,6 +89,11 @@ pub async fn start_recording(state: State<'_, RecordingState>) -> Result<(), Str
 }
 
 #[tauri::command]
+pub async fn cancel_recording(state: State<'_, RecordingState>) -> Result<(), String> {
+    audio::cancel_recording(&state)
+}
+
+#[tauri::command]
 pub async fn stop_recording_and_evaluate(
     state: State<'_, RecordingState>,
     lang: String,

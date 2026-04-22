@@ -140,6 +140,24 @@ pub fn stop_recording(state: &RecordingState) -> Result<Vec<i16>, String> {
     Ok(pcm_i16)
 }
 
+/// 取消录音：停止流、清空缓冲区，不返回数据
+pub fn cancel_recording(state: &RecordingState) -> Result<(), String> {
+    if !state.is_recording.load(Ordering::SeqCst) {
+        // 不在录音状态，直接返回成功
+        return Ok(());
+    }
+
+    state.is_recording.store(false, Ordering::SeqCst);
+
+    // Drop stream to stop recording
+    let _ = state.stream.lock().unwrap().take();
+
+    // Clear buffer
+    state.audio_buffer.lock().unwrap().clear();
+
+    Ok(())
+}
+
 /// 线性插值重采样
 fn resample(input: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
     let ratio = from_rate as f64 / to_rate as f64;

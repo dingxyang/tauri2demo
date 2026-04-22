@@ -149,11 +149,7 @@ async function handleSendRecording() {
 
 function handleCancelRecording() {
   try {
-    invoke('stop_recording_and_recognize', {
-      appId: settingsStore.settingsState.xfSpeechEval.appId,
-      apiKey: settingsStore.settingsState.xfSpeechEval.apiKey,
-      apiSecret: settingsStore.settingsState.xfSpeechEval.apiSecret,
-    }).catch(() => {});
+    invoke('cancel_recording').catch(() => {});
   } catch (_e) {
     // Ignore cancel errors
   }

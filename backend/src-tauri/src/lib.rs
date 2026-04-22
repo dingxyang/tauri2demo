@@ -19,6 +19,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::start_recording,
+            commands::cancel_recording,
             commands::stop_recording_and_evaluate,
             commands::evaluate_mp3_file,
             commands::tts_synthesize,

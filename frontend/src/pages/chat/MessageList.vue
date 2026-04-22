@@ -23,7 +23,14 @@
           <span :class="['scenario-difficulty', scenario.difficulty]">{{ difficultyLabels[scenario.difficulty] }}</span>
         </div>
         <div class="scenario-card-es">{{ scenario.titleEs }}</div>
-        <div class="scenario-card-setting">{{ scenario.setting }}</div>
+        <div class="scenario-card-section">
+          <div class="section-label">场景</div>
+          <div class="section-text">{{ scenario.setting }}</div>
+        </div>
+        <div class="scenario-card-section">
+          <div class="section-label">背景</div>
+          <div class="section-text">{{ scenario.situation }}</div>
+        </div>
         <div class="scenario-card-roles">
           <div class="role-row">
             <span class="role-label">你：</span>
@@ -34,6 +41,7 @@
             <span class="role-label">AI：</span>
             <span class="role-name">{{ scenario.aiRole.name }}</span>
             <span class="role-desc">{{ scenario.aiRole.title }}</span>
+            <span v-if="scenario.aiRole.personality" class="role-personality">（{{ scenario.aiRole.personality }}）</span>
           </div>
         </div>
       </div>
@@ -115,13 +123,21 @@ defineExpose({ scrollToBottom });
   font-size: 13px;
   color: #999;
   font-style: italic;
-  margin-bottom: 8px;
-}
-.scenario-card-setting {
-  font-size: 13px;
-  color: #606266;
   margin-bottom: 10px;
-  line-height: 1.5;
+}
+.scenario-card-section {
+  margin-bottom: 10px;
+}
+.section-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+.section-text {
+  font-size: 13px;
+  color: #303133;
+  line-height: 1.6;
 }
 .scenario-card-roles {
   display: flex;
@@ -145,5 +161,9 @@ defineExpose({ scrollToBottom });
 .role-desc {
   color: #909399;
   font-size: 12px;
+}
+.role-personality {
+  color: #b0b0b0;
+  font-size: 11px;
 }
 </style>
