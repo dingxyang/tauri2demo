@@ -77,6 +77,15 @@ XF_API_KEY=your_api_key
 XF_API_SECRET=your_api_secret
 ```
 
+## 百度 OCR 配置
+图片识别功能依赖百度 OCR 接口。
+
+请在 `backend/src-tauri/src/lib.rs` 中将以下占位符替换为你自己的百度 OCR 凭证：
+
+```rust
+const BAIDU_API_KEY: &str = "YOUR_BAIDU_API_KEY";
+const BAIDU_SECRET_KEY: &str = "YOUR_BAIDU_SECRET_KEY";
+
 ## 开发运行
 
 ### 桌面端
@@ -152,3 +161,4 @@ tauri2demo/
 - [ ] 移动端布局样式兼容问题
 - [ ] 移动端选中文本失效
 - [ ] 使用 openai 的 api
+- [ ] 支持 OCR / AI 密钥本地配置方式
