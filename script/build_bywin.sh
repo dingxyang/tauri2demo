@@ -281,6 +281,126 @@ echo -e "${GREEN}  所有检查通过！${RESET}"
 echo -e "${CYAN}══════════════════════════════════════════${RESET}"
 echo ""
 
+# ─── Build Preparation ────────────────────────────────────────────────────────
+echo -e "${CYAN}══════════════════════════════════════════${RESET}"
+echo -e "${CYAN}  构建准备                                  ${RESET}"
+echo -e "${CYAN}══════════════════════════════════════════${RESET}"
+echo ""
+
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+GEN_ANDROID_DIR="${PROJECT_ROOT}/backend/src-tauri/gen/android"
+
+# ─── Prep 1: pnpm install ────────────────────────────────────────────────────
+echo -e "${CYAN}[准备 1/4] npm 依赖${RESET}"
+if [[ -d "${PROJECT_ROOT}/node_modules" ]]; then
+  ok "node_modules 已存在"
+else
+  warn "node_modules 不存在，正在运行 pnpm install ..."
+  (cd "$PROJECT_ROOT" && pnpm install)
+  ok "pnpm install 完成"
+fi
+
+# ─── Prep 2: Tauri Android init ──────────────────────────────────────────────
+echo -e "${CYAN}[准备 2/4] Tauri Android 项目${RESET}"
+ANDROID_INIT_NEEDED=0
+
+# 检查 gen/android 关键文件是否存在
+if [[ ! -f "${GEN_ANDROID_DIR}/settings.gradle.kts" ]]; then
+  warn "settings.gradle.kts 缺失"
+  ANDROID_INIT_NEEDED=1
+fi
+if [[ ! -f "${GEN_ANDROID_DIR}/gradlew" ]]; then
+  warn "gradlew 缺失"
+  ANDROID_INIT_NEEDED=1
+fi
+if [[ ! -d "${GEN_ANDROID_DIR}/app/src/main/java" ]]; then
+  warn "app/src/main/java/ 缺失"
+  ANDROID_INIT_NEEDED=1
+fi
+
+if [[ "$ANDROID_INIT_NEEDED" -eq 1 ]]; then
+  warn "gen/android 项目不完整，正在运行 pnpm tauri android init ..."
+  (cd "$PROJECT_ROOT" && pnpm tauri android init)
+
+  # init 可能覆盖 keystore.properties，需要重新写入
+  KEYSTORE_PROPS="${GEN_ANDROID_DIR}/keystore.properties"
+  if [[ ! -f "$KEYSTORE_PROPS" ]]; then
+    warn "android init 后 keystore.properties 缺失，正在重新写入 ..."
+    cat > "$KEYSTORE_PROPS" <<'KEYSTORE_EOF'
+keyAlias=tauri2demo_key
+password=abc009988
+storeFile="C:\\SyncData\\release.keystore"
+KEYSTORE_EOF
+    ok "keystore.properties 已重新写入"
+  fi
+
+  ok "pnpm tauri android init 完成"
+else
+  ok "gen/android 项目完整"
+fi
+
+# ─── Prep 3: Frontend build ──────────────────────────────────────────────────
+echo -e "${CYAN}[准备 3/4] 前端构建${RESET}"
+if [[ -d "${PROJECT_ROOT}/frontend/dist" ]]; then
+  ok "frontend/dist 已存在"
+else
+  warn "frontend/dist 不存在，正在运行前端构建 ..."
+  (cd "$PROJECT_ROOT" && pnpm build)
+  ok "前端构建完成"
+fi
+
+# ─── Prep 4: Keystore file ───────────────────────────────────────────────────
+echo -e "${CYAN}[准备 4/4] Keystore 签名文件${RESET}"
+KEYSTORE_PROPS="${GEN_ANDROID_DIR}/keystore.properties"
+if [[ -f "$KEYSTORE_PROPS" ]]; then
+  # 读取 storeFile 路径（去除引号）
+  STORE_FILE_RAW=$(grep '^storeFile=' "$KEYSTORE_PROPS" | sed 's/^storeFile=//' | tr -d '"' | tr -d "'")
+  # 将 Windows 路径转换为 Unix 路径
+  STORE_FILE_UNIX=""
+  if [[ -n "$STORE_FILE_RAW" ]]; then
+    STORE_FILE_UNIX="$(cygpath -u "$STORE_FILE_RAW" 2>/dev/null || echo "$STORE_FILE_RAW")"
+  fi
+
+  if [[ -n "$STORE_FILE_UNIX" && -f "$STORE_FILE_UNIX" ]]; then
+    ok "Keystore 文件已存在：$STORE_FILE_RAW"
+  else
+    warn "Keystore 文件不存在：$STORE_FILE_RAW"
+    warn "正在自动生成 keystore ..."
+
+    # 读取 keyAlias 和 password
+    KEY_ALIAS=$(grep '^keyAlias=' "$KEYSTORE_PROPS" | sed 's/^keyAlias=//' | tr -d '"' | tr -d "'")
+    KEY_PASSWORD=$(grep '^password=' "$KEYSTORE_PROPS" | sed 's/^password=//' | tr -d '"' | tr -d "'")
+
+    # 确保 keystore 所在目录存在
+    STORE_DIR="$(dirname "$STORE_FILE_UNIX")"
+    mkdir -p "$STORE_DIR" 2>/dev/null || true
+
+    # 使用 keytool 生成 keystore
+    if command -v keytool &>/dev/null; then
+      keytool -genkeypair -v \
+        -keystore "$STORE_FILE_UNIX" \
+        -alias "${KEY_ALIAS:-tauri2demo_key}" \
+        -keyalg RSA \
+        -keysize 2048 \
+        -validity 10000 \
+        -storepass "${KEY_PASSWORD:-changeit}" \
+        -keypass "${KEY_PASSWORD:-changeit}" \
+        -dname "CN=Tauri2Demo, OU=Dev, O=Dev, L=Unknown, ST=Unknown, C=CN"
+      ok "Keystore 已生成：$STORE_FILE_RAW"
+    else
+      fail "keytool 未找到，无法自动生成 keystore"
+      fail "请手动运行："
+      fail "  keytool -genkeypair -v -keystore \"$STORE_FILE_RAW\" -alias ${KEY_ALIAS:-tauri2demo_key} -keyalg RSA -keysize 2048 -validity 10000"
+    fi
+  fi
+else
+  warn "keystore.properties 不存在，跳过 keystore 文件检查"
+fi
+
+echo ""
+echo -e "${GREEN}  构建准备完成！${RESET}"
+echo ""
+
 # ─── Export common env vars ───────────────────────────────────────────────────
 export ANDROID_HOME
 export ANDROID_NDK_HOME
