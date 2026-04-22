@@ -5,10 +5,11 @@
         <button class="voice-btn" :class="{ 'voice-active': isPressed, 'voice-cancel': isInCancelZone }"
           @touchstart.prevent="onTouchStart" @touchmove.prevent="onTouchMove" @touchend.prevent="onTouchEnd"
           @mousedown.prevent="onMouseDown" @mouseup.prevent="onMouseUp" @mouseleave.prevent="onMouseLeave">
-          <div v-if="isPressed && !isInCancelZone" class="sound-wave">
+          <div v-if="isPressed && !isInCancelZone && !partialText" class="sound-wave">
             <span v-for="i in 5" :key="i" class="wave-bar" :style="{ animationDelay: `${i * 0.1}s` }"></span>
           </div>
           <span v-else-if="isInCancelZone" class="cancel-text">松开取消</span>
+          <span v-else-if="isPressed && partialText" class="partial-text">{{ partialText }}</span>
           <span v-else>按住说话</span>
         </button>
         <!-- Cancel zone indicator -->
@@ -36,11 +37,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+
 const emit = defineEmits<{ 'switch-to-text': []; 'start-recording': []; 'send-recording': []; 'cancel-recording': [] }>();
 const isPressed = ref(false);
 const isInCancelZone = ref(false);
 const btnRef = ref<HTMLElement | null>(null);
+const partialText = ref('');
+let unlisten: UnlistenFn | null = null;
 
 // Cancel zone: a small fan-shaped area above the button center
 // Within ~80px upward AND within ~60px horizontally from center
@@ -59,10 +64,32 @@ function isInFanZone(touchX: number, touchY: number): boolean {
   return dx <= maxSpread;
 }
 
+async function startListening() {
+  partialText.value = '';
+  try {
+    unlisten = await listen<{ text: string; is_final: boolean }>('asr-partial', (event) => {
+      if (event.payload.text) {
+        partialText.value = event.payload.text;
+      }
+    });
+  } catch (e) {
+    console.warn('Failed to listen for asr-partial events:', e);
+  }
+}
+
+function stopListening() {
+  if (unlisten) {
+    unlisten();
+    unlisten = null;
+  }
+  partialText.value = '';
+}
+
 function onTouchStart(e: TouchEvent) {
   isPressed.value = true;
   isInCancelZone.value = false;
   emit('start-recording');
+  startListening();
 }
 
 function onTouchMove(e: TouchEvent) {
@@ -74,6 +101,7 @@ function onTouchMove(e: TouchEvent) {
 function onTouchEnd(e: TouchEvent) {
   if (!isPressed.value) return;
   isPressed.value = false;
+  stopListening();
   if (isInCancelZone.value) {
     isInCancelZone.value = false;
     emit('cancel-recording');
@@ -82,9 +110,13 @@ function onTouchEnd(e: TouchEvent) {
   }
 }
 
-function onMouseDown() { isPressed.value = true; isInCancelZone.value = false; emit('start-recording'); }
-function onMouseUp() { if (!isPressed.value) return; isPressed.value = false; isInCancelZone.value = false; emit('send-recording'); }
-function onMouseLeave() { if (!isPressed.value) return; isPressed.value = false; isInCancelZone.value = false; emit('cancel-recording'); }
+function onMouseDown() { isPressed.value = true; isInCancelZone.value = false; emit('start-recording'); startListening(); }
+function onMouseUp() { if (!isPressed.value) return; isPressed.value = false; stopListening(); isInCancelZone.value = false; emit('send-recording'); }
+function onMouseLeave() { if (!isPressed.value) return; isPressed.value = false; stopListening(); isInCancelZone.value = false; emit('cancel-recording'); }
+
+onUnmounted(() => {
+  stopListening();
+});
 </script>
 
 <style scoped>
@@ -99,6 +131,10 @@ function onMouseLeave() { if (!isPressed.value) return; isPressed.value = false;
 .voice-active { background: #e8e8e8; transform: scale(1.02); }
 .voice-cancel { background: #fef0f0; color: #f56c6c; transform: scale(0.98); }
 .cancel-text { font-size: 14px; color: #f56c6c; }
+.partial-text {
+  font-size: 13px; color: #333; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; padding: 0 12px;
+}
 .sound-wave { display: flex; align-items: center; gap: 3px; height: 24px; }
 .wave-bar { width: 3px; height: 8px; background: #2B5CE6; border-radius: 2px; animation: wave 0.6s ease-in-out infinite; }
 @keyframes wave { 0%, 100% { height: 8px; } 50% { height: 20px; } }

@@ -121,7 +121,9 @@ async function handleSendText(text: string) {
 // === Voice recording ===
 async function handleStartRecording() {
   try {
-    await invoke('start_recording');
+    const { appId, apiKey, apiSecret } = settingsStore.settingsState.xfSpeechEval;
+    const lang = inputLanguage.value;
+    await invoke('start_recording', { appId, apiKey, apiSecret, lang });
   } catch (e) {
     ElMessage.error('录音启动失败');
     console.error(e);
@@ -131,10 +133,7 @@ async function handleStartRecording() {
 async function handleSendRecording() {
   if (isLoading.value) return;
   try {
-    const { appId, apiKey, apiSecret } = settingsStore.settingsState.xfSpeechEval;
-    const result = await invoke<{ text: string; audio_path?: string }>('stop_recording_and_recognize', {
-      appId, apiKey, apiSecret,
-    });
+    const result = await invoke<{ text: string; audio_path?: string }>('stop_realtime_asr');
     if (result.text) {
       chatStore.addMessage('user', result.text, true, result.audio_path);
       await requestAIReply();

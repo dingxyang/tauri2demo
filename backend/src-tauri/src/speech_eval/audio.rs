@@ -13,6 +13,12 @@ pub struct RecordingState {
     pub device_sample_rate: Arc<Mutex<u32>>,
     /// 录音时设备的实际通道数
     pub device_channels: Arc<Mutex<u16>>,
+    /// 实时 ASR：PCM 数据发送通道
+    pub rtasr_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<Vec<i16>>>>>,
+    /// 实时 ASR：最终识别结果
+    pub rtasr_result: Arc<Mutex<Option<String>>>,
+    /// 实时 ASR：WebSocket 任务句柄
+    pub rtasr_handle: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 // cpal::Stream 不是 Send/Sync，但我们通过 Mutex 保护访问，
@@ -28,11 +34,15 @@ impl RecordingState {
             stream: Arc::new(Mutex::new(None)),
             device_sample_rate: Arc::new(Mutex::new(0)),
             device_channels: Arc::new(Mutex::new(0)),
+            rtasr_tx: Arc::new(Mutex::new(None)),
+            rtasr_result: Arc::new(Mutex::new(None)),
+            rtasr_handle: Arc::new(Mutex::new(None)),
         }
     }
 }
 
 /// 开始录音：使用设备默认配置启动 cpal 输入流，将原始 f32 数据写入 buffer
+/// 如果 rtasr_tx 存在，同时将重采样后的 i16 PCM 数据发送到实时 ASR 通道
 pub fn start_recording(state: &RecordingState) -> Result<(), String> {
     if state.is_recording.load(Ordering::SeqCst) {
         return Err("already recording".to_string());
@@ -40,6 +50,7 @@ pub fn start_recording(state: &RecordingState) -> Result<(), String> {
 
     // 清空上次的录音数据
     state.audio_buffer.lock().unwrap().clear();
+    *state.rtasr_result.lock().unwrap() = None;
 
     let host = cpal::default_host();
     let device = host
@@ -60,13 +71,47 @@ pub fn start_recording(state: &RecordingState) -> Result<(), String> {
 
     let buffer = state.audio_buffer.clone();
     let is_recording = state.is_recording.clone();
+    let rtasr_tx = state.rtasr_tx.clone();
 
     let stream = device
         .build_input_stream(
             &config,
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                if is_recording.load(Ordering::SeqCst) {
-                    buffer.lock().unwrap().extend_from_slice(data);
+                if !is_recording.load(Ordering::SeqCst) {
+                    return;
+                }
+                // 写入原始 f32 buffer（用于保存完整录音）
+                buffer.lock().unwrap().extend_from_slice(data);
+
+                // 如果实时 ASR 通道存在，转换并发送 PCM 数据
+                if let Some(tx) = rtasr_tx.lock().unwrap().as_ref() {
+                    // Step 1: 多通道转 mono（取第一通道）
+                    let mono: Vec<f32> = if channels > 1 {
+                        data.chunks(channels as usize)
+                            .map(|chunk| chunk[0])
+                            .collect()
+                    } else {
+                        data.to_vec()
+                    };
+
+                    // Step 2: 重采样到 16kHz（线性插值）
+                    let resampled = if sample_rate != 16000 {
+                        resample(&mono, sample_rate, 16000)
+                    } else {
+                        mono
+                    };
+
+                    // Step 3: f32 → i16
+                    let pcm_i16: Vec<i16> = resampled
+                        .iter()
+                        .map(|&s| {
+                            let clamped = s.clamp(-1.0, 1.0);
+                            (clamped * i16::MAX as f32) as i16
+                        })
+                        .collect();
+
+                    // try_send 非阻塞，如果通道满则丢弃（避免音频回调阻塞）
+                    let _ = tx.try_send(pcm_i16);
                 }
             },
             |err| {
@@ -154,6 +199,14 @@ pub fn cancel_recording(state: &RecordingState) -> Result<(), String> {
 
     // Clear buffer
     state.audio_buffer.lock().unwrap().clear();
+
+    // Clean up RTASR state: drop sender to signal WS task to stop
+    *state.rtasr_tx.lock().unwrap() = None;
+    *state.rtasr_result.lock().unwrap() = None;
+    // Abort the RTASR task if still running
+    if let Some(handle) = state.rtasr_handle.lock().unwrap().take() {
+        handle.abort();
+    }
 
     Ok(())
 }

@@ -23,7 +23,8 @@ pub fn run() {
             commands::stop_recording_and_evaluate,
             commands::evaluate_mp3_file,
             commands::tts_synthesize,
-            commands::stop_recording_and_recognize
+            commands::stop_recording_and_recognize,
+            commands::stop_realtime_asr
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

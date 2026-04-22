@@ -210,6 +210,13 @@ pub struct AsrResult {
     pub text: String,
 }
 
+/// 实时 ASR 识别结果
+#[derive(Serialize, Clone, Debug)]
+pub struct RealtimeAsrResult {
+    pub text: String,
+    pub audio_path: Option<String>,
+}
+
 /// 根据语言选择 WebSocket 端点
 pub fn get_ws_endpoint(lang: &str) -> (&'static str, &'static str) {
     match lang {
