@@ -178,7 +178,7 @@ pub fn run() {
                 .level(if cfg!(debug_assertions) {
                     log::LevelFilter::Trace
                 } else {
-                    log::LevelFilter::Trace
+                    log::LevelFilter::Info
                 })
                 .format(move |out, message, record| {
                     custom_log_out(out, message, record);

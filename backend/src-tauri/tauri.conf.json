@@ -44,6 +44,10 @@
     "iOS": {
       "developmentTeam": "12345",
       "minimumSystemVersion": "14.0"
+    },
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "minimumSystemVersion": "10.15"
     }
   }
 }
