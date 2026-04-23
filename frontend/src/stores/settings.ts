@@ -9,8 +9,9 @@ import {
   getCachedTestResult,
   isCacheExpired
 } from "@/utils/localStorage";
-import { 
-  createProviderConfig, 
+import {
+  createProviderConfig,
+  Provider,
 } from "@/utils/constant/providers";
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -24,9 +25,23 @@ export const useSettingsStore = defineStore("settings", () => {
       apiKey: '',
       apiSecret: '',
     },
-    chatDefaultPrompt: '',
   });
 
+  /** Check if a "providerId/modelId" model info points to an enabled+available provider */
+  function isModelAvailable(modelInfo: string): boolean {
+    const [providerId] = modelInfo.split('/');
+    const provider = settingsState.providers[providerId];
+    return provider && provider.enabled && provider.available === true;
+  }
+
+  /** Get the first provider that is enabled and available (tested successfully) */
+  function getFirstAvailableProvider(): Provider | null {
+    const entries = Object.values(settingsState.providers);
+    for (const p of entries) {
+      if (p.enabled && p.available === true) return p;
+    }
+    return null;
+  }
 
   const loadSettings = async () => {
     // 先从本地缓存读取
@@ -34,6 +49,14 @@ export const useSettingsStore = defineStore("settings", () => {
     if (currentModelInfo) {
       // 现在存储的是简化格式 "providerId/modelId"，直接使用
       settingsState.defaultModelInfo = currentModelInfo;
+    }
+    // Auto-default: if no model saved or saved model unavailable, pick first available
+    if (!settingsState.defaultModelInfo || !isModelAvailable(settingsState.defaultModelInfo)) {
+      const firstAvailable = getFirstAvailableProvider();
+      if (firstAvailable) {
+        settingsState.defaultModelInfo = `${firstAvailable.id}/${firstAvailable.defaultModel}`;
+        setCurrentModelInfo(settingsState.defaultModelInfo);
+      }
     }
     let settings = getSettings();
     if (settings) {
@@ -102,9 +125,6 @@ export const useSettingsStore = defineStore("settings", () => {
       }
       if (settings.xfSpeechEval) {
         Object.assign(settingsState.xfSpeechEval, settings.xfSpeechEval);
-      }
-      if (settings.chatDefaultPrompt !== undefined) {
-        settingsState.chatDefaultPrompt = settings.chatDefaultPrompt;
       }
     }
 
