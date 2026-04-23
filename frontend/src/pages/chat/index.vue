@@ -244,9 +244,20 @@ async function handlePlayVoice(msg: Message) {
     return;
   }
   stopTts();
+  const url = convertFileSrc(msg.audioPath);
+  try {
+    const head = await fetch(url, { method: 'HEAD' });
+    if (!head.ok) {
+      ElMessage.warning('该录音已被清理，无法播放');
+      return;
+    }
+  } catch {
+    ElMessage.warning('该录音已被清理，无法播放');
+    return;
+  }
   try {
     playingMessageId.value = msg.id;
-    const audio = new Audio(convertFileSrc(msg.audioPath));
+    const audio = new Audio(url);
     currentAudio.value = audio;
     audio.onended = () => { playingMessageId.value = null; currentAudio.value = null; };
     audio.onerror = () => { playingMessageId.value = null; currentAudio.value = null; ElMessage.error('播放录音失败'); };

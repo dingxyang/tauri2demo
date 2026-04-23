@@ -27,6 +27,7 @@ import {
   isCacheExpired,
   clearProviderCache,
 } from "@/utils/localStorage";
+import PageHeader from "@/layouts/PageHeader.vue";
 
 defineOptions({ name: 'Settings' });
 
@@ -207,16 +208,15 @@ onMounted(() => {
 <template>
   <div class="settings-page">
     <!-- 顶部标题栏 -->
-    <div class="settings-header">
-      <button v-if="currentSection" class="back-btn" @click="currentSection = null">
-        <svg width="10" height="16" viewBox="0 0 10 16" fill="none">
-          <path d="M8 2L2 8L8 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <span class="header-title">
-        {{ currentSection ? sectionTitle[currentSection] : '设置' }}
-      </span>
-    </div>
+    <PageHeader :title="currentSection ? sectionTitle[currentSection] : '设置'">
+      <template v-if="currentSection" #left>
+        <button class="back-btn" @click="currentSection = null">
+          <svg width="10" height="16" viewBox="0 0 10 16" fill="none">
+            <path d="M8 2L2 8L8 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- 一级菜单列表 -->
     <div v-if="!currentSection" class="settings-body">
@@ -443,23 +443,6 @@ onMounted(() => {
   background: #f5f5f5;
 }
 
-/* 标题栏 */
-.settings-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
-  flex-shrink: 0;
-}
-
-@media (min-width: 600px) {
-  .settings-header {
-    padding: 16px 24px;
-  }
-}
-
 .back-btn {
   display: flex;
   align-items: center;
@@ -472,12 +455,6 @@ onMounted(() => {
   color: #e05a4b;
   padding: 0;
   margin-left: -6px;
-}
-
-.header-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: #1a1a1a;
 }
 
 /* 滚动内容区 */
@@ -505,6 +482,7 @@ onMounted(() => {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  flex-shrink: 0;
 }
 
 .menu-item {
@@ -559,6 +537,7 @@ onMounted(() => {
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   padding: 0 16px;
+  flex-shrink: 0;
 }
 
 @media (min-width: 600px) {

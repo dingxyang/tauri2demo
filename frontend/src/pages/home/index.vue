@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import type { ListItem } from "../../types";
 import { NEWS_LIST } from "./new";
 import { useScrollRestoration } from "@/utils/useScrollRestoration";
+import PageHeader from "@/layouts/PageHeader.vue";
 
 // 定义组件名称，用于keep-alive
 defineOptions({
@@ -14,7 +15,7 @@ const router = useRouter();
 
 // 保存滚动位置
 const mainContentRef = ref<HTMLElement | null>(null);
-useScrollRestoration({ selector: '.el-main' });
+useScrollRestoration({ selector: '.main-content' });
 
 // 文章列表数据
 // 加入月份维度，数据结构按月份分组
@@ -40,19 +41,17 @@ function goToDetail(item: ListItem) {
 </script>
 
 <template>
-  <el-container class="home-page">
-    <el-header class="home-header">
-      <div class="page-title">行业动态</div>
-    </el-header>
-    
-    <el-main class="main-content" ref="mainContentRef">
+  <div class="home-page">
+    <PageHeader title="行业动态" />
+
+    <div class="main-content" ref="mainContentRef">
       <div class="list-container">
         <div v-for="month in Object.keys(listItemsByMonth)" :key="month">
           <el-collapse  v-model="activeNames">
             <el-collapse-item :title="month" :name="month">
               <div class="list">
-                <div 
-                  v-for="item in listItemsByMonth[month]" 
+                <div
+                  v-for="item in listItemsByMonth[month]"
                   :key="item.id"
                   class="list-item"
                   @click="goToDetail(item)"
@@ -65,8 +64,8 @@ function goToDetail(item: ListItem) {
           </el-collapse>
         </div>
       </div>
-    </el-main>
-  </el-container>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -75,22 +74,19 @@ function goToDetail(item: ListItem) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.home-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 20px 20px 0 20px;
-  z-index: 10;
+  background: #f5f5f5;
 }
 
 .main-content {
   flex: 1;
-  padding: 1rem;
+  padding: 16px;
   overflow-y: auto;
+}
+
+@media (min-width: 600px) {
+  .main-content {
+    padding: 20px;
+  }
 }
 
 /* 自定义滚动条样式 */
@@ -116,7 +112,9 @@ function goToDetail(item: ListItem) {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .list-container h2 {
@@ -159,25 +157,13 @@ function goToDetail(item: ListItem) {
 
 /* 移动端适配 */
 @media (max-width: 600px) {
-  .home-header {
-    padding: 12px 16px 0 16px;
-  }
-  
-  .page-title {
-    font-size: 16px;
-  }
-  
-  .main-content {
-    padding: 0.75rem;
-  }
-  
   .list-container {
     padding: 1rem;
   }
-  
+
   .list-item {
     padding: 0.75rem;
   }
 }
 
-</style> 
+</style>
