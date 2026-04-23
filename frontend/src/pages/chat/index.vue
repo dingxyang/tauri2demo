@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onActivated } from 'vue';
 import { storeToRefs } from 'pinia';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
 import { useSettingsStore } from '@/stores/settings';
@@ -121,9 +121,9 @@ async function handleSendText(text: string) {
 // === Voice recording ===
 async function handleStartRecording() {
   try {
-    const { appId, apiKey, apiSecret } = settingsStore.settingsState.xfSpeechEval;
+    const { appId, apiKey } = settingsStore.settingsState.xfRtasr;
     const lang = inputLanguage.value;
-    await invoke('start_realtime_asr_recording', { appId, apiKey, apiSecret, lang });
+    await invoke('start_realtime_asr_recording', { appId, apiKey, lang });
   } catch (e) {
     ElMessage.error('录音启动失败');
     console.error(e);
@@ -246,7 +246,7 @@ async function handlePlayVoice(msg: Message) {
   stopTts();
   try {
     playingMessageId.value = msg.id;
-    const audio = new Audio(msg.audioPath);
+    const audio = new Audio(convertFileSrc(msg.audioPath));
     currentAudio.value = audio;
     audio.onended = () => { playingMessageId.value = null; currentAudio.value = null; };
     audio.onerror = () => { playingMessageId.value = null; currentAudio.value = null; ElMessage.error('播放录音失败'); };

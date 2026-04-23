@@ -24,6 +24,10 @@ export const useSettingsStore = defineStore("settings", () => {
       apiKey: '',
       apiSecret: '',
     },
+    xfRtasr: {
+      appId: '',
+      apiKey: '',
+    },
     chatDefaultPrompt: '',
   });
 
@@ -103,6 +107,13 @@ export const useSettingsStore = defineStore("settings", () => {
       if (settings.xfSpeechEval) {
         Object.assign(settingsState.xfSpeechEval, settings.xfSpeechEval);
       }
+      if (settings.xfRtasr) {
+        Object.assign(settingsState.xfRtasr, settings.xfRtasr);
+      } else if (settings.xfSpeechEval) {
+        // 迁移：老用户没有 xfRtasr，从 xfSpeechEval 继承 appId/apiKey
+        settingsState.xfRtasr.appId = settings.xfSpeechEval.appId || '';
+        settingsState.xfRtasr.apiKey = settings.xfSpeechEval.apiKey || '';
+      }
       if (settings.chatDefaultPrompt !== undefined) {
         settingsState.chatDefaultPrompt = settings.chatDefaultPrompt;
       }
@@ -121,6 +132,9 @@ export const useSettingsStore = defineStore("settings", () => {
     }
     if (data.xfSpeechEval) {
       Object.assign(settingsState.xfSpeechEval, data.xfSpeechEval);
+    }
+    if (data.xfRtasr) {
+      Object.assign(settingsState.xfRtasr, data.xfRtasr);
     }
 
     setSettings(settingsState);

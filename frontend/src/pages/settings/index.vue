@@ -31,13 +31,12 @@ import {
 defineOptions({ name: 'Settings' });
 
 // 一级导航状态：null = 列表首页
-type Section = null | 'speech-eval' | 'model-services' | 'chat'
+type Section = null | 'speech-eval' | 'model-services'
 const currentSection = ref<Section>(null)
 
 const sectionTitle: Record<Exclude<Section, null>, string> = {
   'speech-eval': '语音评测配置',
   'model-services': '模型服务',
-  'chat': '场景对话',
 }
 
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
@@ -77,6 +76,7 @@ const autoSave = () => {
       await settingsStore.saveSettings({
         providers: settings.value.providers,
         xfSpeechEval: settings.value.xfSpeechEval,
+        xfRtasr: settings.value.xfRtasr,
       });
     } catch (error) {
       console.error("自动保存失败:", error);
@@ -85,7 +85,7 @@ const autoSave = () => {
 };
 
 watch(
-  () => [settings.value.providers, settings.value.xfSpeechEval, settings.value.chatDefaultPrompt],
+  () => [settings.value.providers, settings.value.xfSpeechEval, settings.value.xfRtasr],
   () => { autoSave(); },
   { deep: true }
 );
@@ -247,19 +247,7 @@ onMounted(() => {
             <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
-        <button class="menu-item" @click="currentSection = 'chat'">
-          <span class="menu-icon chat-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </span>
-          <span class="menu-label">场景对话</span>
-          <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
-            <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
       </div>
-
     </div>
 
     <!-- 二级页面：语音评测配置 -->
@@ -290,6 +278,28 @@ onMounted(() => {
           <el-input
             v-model="settings.xfSpeechEval.apiSecret"
             placeholder="请输入 API Secret"
+            show-password
+            class="form-input"
+          />
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-group-header">
+          <span class="form-group-title">实时语音转写（RTASR）</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label">App ID</label>
+          <el-input
+            v-model="settings.xfRtasr.appId"
+            placeholder="请输入 RTASR App ID"
+            class="form-input"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">API Key</label>
+          <el-input
+            v-model="settings.xfRtasr.apiKey"
+            placeholder="请输入 RTASR API Key"
             show-password
             class="form-input"
           />
@@ -422,23 +432,6 @@ onMounted(() => {
         </template>
       </div>
     </div>
-
-    <!-- 二级页面：场景对话 -->
-    <div v-else-if="currentSection === 'chat'" class="settings-body">
-      <div class="form-group">
-        <div class="form-group-header">
-          <span class="form-group-title">默认系统提示语</span>
-        </div>
-        <div class="form-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
-          <el-input
-            v-model="settings.chatDefaultPrompt"
-            type="textarea"
-            :rows="6"
-            placeholder="输入系统提示语，定义AI的角色和行为"
-          />
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -459,6 +452,12 @@ onMounted(() => {
   background: #fff;
   border-bottom: 1px solid #ebeef5;
   flex-shrink: 0;
+}
+
+@media (min-width: 600px) {
+  .settings-header {
+    padding: 16px 24px;
+  }
 }
 
 .back-btn {
@@ -489,6 +488,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 600px) {
+  .settings-body {
+    padding: 24px 24px 40px;
+  }
 }
 
 /* 一级菜单组 */
@@ -533,7 +541,6 @@ onMounted(() => {
 
 .speech-icon { background: #fff1f0; color: #e05a4b; }
 .model-icon  { background: #f0f4ff; color: #5b7cee; }
-.chat-icon   { background: #e8f4fd; color: #2B5CE6; }
 
 .menu-label {
   flex: 1;
@@ -552,6 +559,12 @@ onMounted(() => {
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   padding: 0 16px;
+}
+
+@media (min-width: 600px) {
+  .form-group {
+    padding: 0 20px;
+  }
 }
 
 .form-group-header {
@@ -576,6 +589,13 @@ onMounted(() => {
   border-bottom: 1px solid #f5f5f5;
 }
 
+@media (min-width: 600px) {
+  .form-row {
+    padding: 12px 0;
+    gap: 16px;
+  }
+}
+
 .form-row:last-child {
   border-bottom: none;
 }
@@ -588,8 +608,15 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+@media (min-width: 600px) {
+  .form-label {
+    min-width: 90px;
+  }
+}
+
 .form-input {
   flex: 1;
+  min-width: 0;
 }
 
 </style>

@@ -148,7 +148,10 @@ pub fn run() {
             commands::evaluate_mp3_file,
             commands::tts_synthesize,
             commands::stop_recording_and_recognize,
-            commands::stop_realtime_asr
+            commands::stop_realtime_asr,
+            commands::list_recordings,
+            commands::delete_recording,
+            commands::clear_recordings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
