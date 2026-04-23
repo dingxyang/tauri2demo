@@ -9,6 +9,7 @@ import {
   ElMessage,
   ElSelect,
   ElOption,
+  ElOptionGroup,
   ElSwitch,
   FormRules,
 } from "element-plus";
@@ -37,7 +38,7 @@ const currentSection = ref<Section>(null)
 const sectionTitle: Record<Exclude<Section, null>, string> = {
   'speech-eval': '语音评测配置',
   'model-services': '模型服务',
-  'chat': '场景对话',
+  'chat': '对话设置',
 }
 
 const openaiFormRef = ref<InstanceType<typeof ElForm>>();
@@ -60,6 +61,34 @@ const customProviderFormRules = ref<FormRules>({
 
 const settingsStore = useSettingsStore();
 const settings = computed(() => settingsStore.settingsState);
+
+/** Providers that are enabled and tested successfully (available === true) */
+const availableProviders = computed(() => {
+  return Object.entries(settings.value.providers)
+    .filter(([_, p]) => p.enabled && p.available === true)
+    .map(([id, p]) => ({
+      id,
+      name: p.name,
+      models: Object.keys(p.models).map(modelId => ({
+        id: modelId,
+        name: modelId,
+      })),
+      defaultModel: p.defaultModel,
+    }));
+});
+
+/** Whether any available provider exists */
+const hasAvailableProviders = computed(() => availableProviders.value.length > 0);
+
+/** Current selected model display info */
+const currentModelDisplay = computed(() => {
+  const modelInfo = settings.value.defaultModelInfo;
+  if (!modelInfo) return '';
+  const [providerId, modelId] = modelInfo.split('/');
+  const provider = settings.value.providers[providerId];
+  if (!provider) return modelId;
+  return `${provider.name} / ${modelId}`;
+});
 
 const getAvailableModels = (providerId: string) => {
   const providerModels = providers[providerId].models;
@@ -85,7 +114,7 @@ const autoSave = () => {
 };
 
 watch(
-  () => [settings.value.providers, settings.value.xfSpeechEval, settings.value.chatDefaultPrompt],
+  () => [settings.value.providers, settings.value.xfSpeechEval],
   () => { autoSave(); },
   { deep: true }
 );
@@ -193,6 +222,11 @@ const testProvider = async (providerId: string) => {
   }
 };
 
+/** Save chat model selection when user changes it */
+const handleChatModelChange = (value: string) => {
+  settingsStore.saveCurrentModelInfo(value);
+};
+
 onMounted(() => {
   const cachedModels = getCachedModels("openai-compatible");
   if (cachedModels) {
@@ -253,7 +287,7 @@ onMounted(() => {
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
           </span>
-          <span class="menu-label">场景对话</span>
+          <span class="menu-label">对话设置</span>
           <svg class="menu-chevron" width="7" height="12" viewBox="0 0 7 12" fill="none">
             <path d="M1 1L6 6L1 11" stroke="#C0C4CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -423,19 +457,29 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 二级页面：场景对话 -->
+    <!-- 二级页面：对话设置 -->
     <div v-else-if="currentSection === 'chat'" class="settings-body">
       <div class="form-group">
         <div class="form-group-header">
-          <span class="form-group-title">默认系统提示语</span>
+          <span class="form-group-title">对话模型</span>
         </div>
-        <div class="form-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
-          <el-input
-            v-model="settings.chatDefaultPrompt"
-            type="textarea"
-            :rows="6"
-            placeholder="输入系统提示语，定义AI的角色和行为"
-          />
+        <template v-if="hasAvailableProviders">
+          <div class="form-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+            <el-select
+              v-model="settings.defaultModelInfo"
+              placeholder="选择对话模型"
+              style="width: 100%"
+              @change="handleChatModelChange"
+            >
+              <el-option-group v-for="provider in availableProviders" :key="provider.id" :label="provider.name">
+                <el-option v-for="model in provider.models" :key="`${provider.id}/${model.id}`" :label="model.name" :value="`${provider.id}/${model.id}`" />
+              </el-option-group>
+            </el-select>
+            <div v-if="currentModelDisplay" class="model-info-line">{{ currentModelDisplay }}</div>
+          </div>
+        </template>
+        <div v-else class="empty-model-tip">
+          暂无可用模型服务，请先在模型服务中配置并测试
         </div>
       </div>
     </div>
@@ -590,6 +634,19 @@ onMounted(() => {
 
 .form-input {
   flex: 1;
+}
+
+.model-info-line {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.empty-model-tip {
+  text-align: center;
+  padding: 24px 16px;
+  color: #999;
+  font-size: 14px;
 }
 
 </style>
