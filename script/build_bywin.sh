@@ -611,6 +611,22 @@ KEYSTORE_EOF
     fi
   fi
 
+  # 替换 Android 签名和权限文件（init 生成的默认文件不含签名配置和录音权限）
+  GEN_ANDROID_APP="${GEN_ANDROID_DIR}/app"
+  echo -e "${CYAN}  替换 Android 签名和权限文件${RESET}"
+  if [[ -f "${SCRIPT_DIR}/android-permission-sign/build.gradle.kts" ]]; then
+    cp "${SCRIPT_DIR}/android-permission-sign/build.gradle.kts" "${GEN_ANDROID_APP}/build.gradle.kts"
+    ok "build.gradle.kts 已替换"
+  else
+    warn "android-permission-sign/build.gradle.kts 不存在，跳过替换"
+  fi
+  if [[ -f "${SCRIPT_DIR}/android-permission-sign/AndroidManifest.xml" ]]; then
+    cp "${SCRIPT_DIR}/android-permission-sign/AndroidManifest.xml" "${GEN_ANDROID_APP}/src/main/AndroidManifest.xml"
+    ok "AndroidManifest.xml 已替换"
+  else
+    warn "android-permission-sign/AndroidManifest.xml 不存在，跳过替换"
+  fi
+
   ok "pnpm tauri android init 完成"
 else
   ok "gen/android 项目完整"
