@@ -9,6 +9,7 @@ import {
   ElMessage,
   ElSelect,
   ElOption,
+  ElOptionGroup,
   ElSwitch,
   FormRules,
 } from "element-plus";
@@ -60,6 +61,34 @@ const customProviderFormRules = ref<FormRules>({
 
 const settingsStore = useSettingsStore();
 const settings = computed(() => settingsStore.settingsState);
+
+/** Providers that are enabled and tested successfully (available === true) */
+const availableProviders = computed(() => {
+  return Object.entries(settings.value.providers)
+    .filter(([_, p]) => p.enabled && p.available === true)
+    .map(([id, p]) => ({
+      id,
+      name: p.name,
+      models: Object.keys(p.models).map(modelId => ({
+        id: modelId,
+        name: modelId,
+      })),
+      defaultModel: p.defaultModel,
+    }));
+});
+
+/** Whether any available provider exists */
+const hasAvailableProviders = computed(() => availableProviders.value.length > 0);
+
+/** Current selected model display info */
+const currentModelDisplay = computed(() => {
+  const modelInfo = settings.value.defaultModelInfo;
+  if (!modelInfo) return '';
+  const [providerId, modelId] = modelInfo.split('/');
+  const provider = settings.value.providers[providerId];
+  if (!provider) return modelId;
+  return `${provider.name} / ${modelId}`;
+});
 
 const getAvailableModels = (providerId: string) => {
   const providerModels = providers[providerId].models;
@@ -192,6 +221,11 @@ const testProvider = async (providerId: string) => {
     ElMessage.error("测试失败，请检查配置是否正确");
     throw error;
   }
+};
+
+/** Save chat model selection when user changes it */
+const handleChatModelChange = (value: string) => {
+  settingsStore.saveCurrentModelInfo(value);
 };
 
 onMounted(() => {
@@ -596,6 +630,19 @@ onMounted(() => {
 .form-input {
   flex: 1;
   min-width: 0;
+}
+
+.model-info-line {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.empty-model-tip {
+  text-align: center;
+  padding: 24px 16px;
+  color: #999;
+  font-size: 14px;
 }
 
 </style>

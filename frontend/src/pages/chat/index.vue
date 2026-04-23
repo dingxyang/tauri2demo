@@ -104,11 +104,11 @@ const inputLanguage = computed(() => {
 });
 
 onMounted(() => {
-  chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || '');
+  chatStore.ensureActiveSession();
 });
 
 onActivated(() => {
-  chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || '');
+  chatStore.ensureActiveSession();
 });
 
 // === Send text message ===
@@ -271,11 +271,11 @@ async function handlePlayVoice(msg: Message) {
 
 // === Session management ===
 function handleNewSession() {
-  chatStore.createSession(settingsStore.settingsState.chatDefaultPrompt || '');
+  chatStore.createSession();
   showHistory.value = false;
 }
 function handleSelectSession(id: string) { chatStore.switchSession(id); showHistory.value = false; }
-function handleDeleteSession(id: string) { chatStore.deleteSession(id); chatStore.ensureActiveSession(settingsStore.settingsState.chatDefaultPrompt || ''); }
+function handleDeleteSession(id: string) { chatStore.deleteSession(id); chatStore.ensureActiveSession(); }
 
 // === Scenario management ===
 function handleSelectScenario(scenario: Scenario) {

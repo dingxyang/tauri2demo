@@ -9,8 +9,9 @@ import {
   getCachedTestResult,
   isCacheExpired
 } from "@/utils/localStorage";
-import { 
-  createProviderConfig, 
+import {
+  createProviderConfig,
+  Provider,
 } from "@/utils/constant/providers";
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -31,6 +32,21 @@ export const useSettingsStore = defineStore("settings", () => {
     chatDefaultPrompt: '',
   });
 
+  /** Check if a "providerId/modelId" model info points to an enabled+available provider */
+  function isModelAvailable(modelInfo: string): boolean {
+    const [providerId] = modelInfo.split('/');
+    const provider = settingsState.providers[providerId];
+    return provider && provider.enabled && provider.available === true;
+  }
+
+  /** Get the first provider that is enabled and available (tested successfully) */
+  function getFirstAvailableProvider(): Provider | null {
+    const entries = Object.values(settingsState.providers);
+    for (const p of entries) {
+      if (p.enabled && p.available === true) return p;
+    }
+    return null;
+  }
 
   const loadSettings = async () => {
     // 先从本地缓存读取
@@ -42,7 +58,7 @@ export const useSettingsStore = defineStore("settings", () => {
     let settings = getSettings();
     if (settings) {
       settings = JSON.parse(settings);
-      
+
       // 加载新的多提供商配置
       if (settings.providers) {
         Object.keys(settings.providers).forEach(providerId => {
@@ -50,7 +66,7 @@ export const useSettingsStore = defineStore("settings", () => {
             // 合并保存的配置到默认配置
             const savedConfig = settings.providers[providerId];
             const currentProvider = settingsState.providers[providerId];
-            
+
             // 更新provider配置，保持默认结构
             currentProvider.enabled = savedConfig.enabled ?? currentProvider.enabled;
             if (savedConfig.options) {
@@ -75,7 +91,7 @@ export const useSettingsStore = defineStore("settings", () => {
               currentProvider.name = savedConfig.name;
               currentProvider.options = currentProvider.options || {};
             }
-            
+
             // 加载缓存的模型列表
             const cachedModels = getCachedModels(providerId);
             if (cachedModels) {
@@ -88,7 +104,7 @@ export const useSettingsStore = defineStore("settings", () => {
                 console.warn(`加载 ${providerId} 模型缓存失败:`, error);
               }
             }
-            
+
             // 加载缓存的测试结果
             const cachedTestResult = getCachedTestResult(providerId);
             if (cachedTestResult) {
