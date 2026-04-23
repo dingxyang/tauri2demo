@@ -25,6 +25,11 @@ export const useSettingsStore = defineStore("settings", () => {
       apiKey: '',
       apiSecret: '',
     },
+    xfRtasr: {
+      appId: '',
+      apiKey: '',
+    },
+    chatDefaultPrompt: '',
   });
 
   /** Check if a "providerId/modelId" model info points to an enabled+available provider */
@@ -118,14 +123,15 @@ export const useSettingsStore = defineStore("settings", () => {
       if (settings.xfSpeechEval) {
         Object.assign(settingsState.xfSpeechEval, settings.xfSpeechEval);
       }
-    }
-
-    // Auto-default: after loading settings and caches, if no model saved or saved model unavailable, pick first available
-    if (!settingsState.defaultModelInfo || !isModelAvailable(settingsState.defaultModelInfo)) {
-      const firstAvailable = getFirstAvailableProvider();
-      if (firstAvailable) {
-        settingsState.defaultModelInfo = `${firstAvailable.id}/${firstAvailable.defaultModel}`;
-        setCurrentModelInfo(settingsState.defaultModelInfo);
+      if (settings.xfRtasr) {
+        Object.assign(settingsState.xfRtasr, settings.xfRtasr);
+      } else if (settings.xfSpeechEval) {
+        // 迁移：老用户没有 xfRtasr，从 xfSpeechEval 继承 appId/apiKey
+        settingsState.xfRtasr.appId = settings.xfSpeechEval.appId || '';
+        settingsState.xfRtasr.apiKey = settings.xfSpeechEval.apiKey || '';
+      }
+      if (settings.chatDefaultPrompt !== undefined) {
+        settingsState.chatDefaultPrompt = settings.chatDefaultPrompt;
       }
     }
 
@@ -142,6 +148,9 @@ export const useSettingsStore = defineStore("settings", () => {
     }
     if (data.xfSpeechEval) {
       Object.assign(settingsState.xfSpeechEval, data.xfSpeechEval);
+    }
+    if (data.xfRtasr) {
+      Object.assign(settingsState.xfRtasr, data.xfRtasr);
     }
 
     setSettings(settingsState);

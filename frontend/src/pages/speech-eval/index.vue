@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import EvalResult from './components/EvalResult.vue'
 import { useDailySentence } from './composables/useDailySentence'
 import { useSettingsStore } from '@/stores/settings'
+import PageHeader from '@/layouts/PageHeader.vue'
 
 defineOptions({
   name: 'SpeechEval',
@@ -146,10 +147,8 @@ async function handleStop() {
 
 <template>
   <div class="daily-sentence-page">
-    <!-- Header -->
-    <div class="page-header">
-      <div class="page-title">每日一句</div>
-      <div class="page-nav">
+    <PageHeader title="每日一句">
+      <template #right>
         <button class="nav-btn" :disabled="!canPrev" @click="prev">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -161,8 +160,8 @@ async function handleStop() {
             <polyline points="9 6 15 12 9 18" />
           </svg>
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div class="page-body">
       <!-- Sentence card -->
@@ -234,28 +233,7 @@ async function handleStop() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fafafa;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  background: white;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.page-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #333;
-}
-
-.page-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  background: #f5f5f5;
 }
 
 .nav-btn {
@@ -294,6 +272,16 @@ async function handleStop() {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+@media (min-width: 600px) {
+  .page-body {
+    padding: 20px;
+  }
 }
 
 .sentence-card {

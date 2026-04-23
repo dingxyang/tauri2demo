@@ -1,5 +1,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use serde::Serialize;
 use std::path::Path;
 use tauri::{Manager, State};
 
@@ -8,7 +9,7 @@ use super::asr;
 use super::client;
 use super::rtasr;
 use super::tts;
-use super::types::{AsrResult, EvalResult, RealtimeAsrResult, XfConfig};
+use super::types::{AsrResult, EvalResult, RealtimeAsrResult, XfConfig, XfRtasrConfig};
 
 #[tauri::command]
 pub async fn tts_synthesize(
@@ -101,17 +102,15 @@ pub async fn start_realtime_asr_recording(
     app_handle: tauri::AppHandle,
     app_id: String,
     api_key: String,
-    api_secret: String,
     lang: String,
 ) -> Result<(), String> {
-    if app_id.is_empty() || api_key.is_empty() || api_secret.is_empty() {
-        return Err("missing XFyun credentials for realtime ASR".to_string());
+    if app_id.is_empty() || api_key.is_empty() {
+        return Err("missing XFyun credentials for realtime ASR (appId and apiKey required)".to_string());
     }
 
-    let config = XfConfig {
+    let config = XfRtasrConfig {
         app_id: app_id.clone(),
         api_key: api_key.clone(),
-        api_secret: api_secret.clone(),
     };
     let result_store = state.rtasr_result.clone();
     let handle_store = state.rtasr_handle.clone();
@@ -294,4 +293,93 @@ fn save_recording_to_file(
         .map_err(|e| format!("failed to write audio file: {}", e))?;
 
     Ok(file_path.to_string_lossy().to_string())
+}
+
+/// 录音文件信息
+#[derive(Serialize, Clone)]
+pub struct RecordingEntry {
+    pub name: String,
+    pub size: u64,
+    pub path: String,
+    pub created_at: String,
+}
+
+/// 获取录音缓存列表
+#[tauri::command]
+pub async fn list_recordings(app_handle: tauri::AppHandle) -> Result<Vec<RecordingEntry>, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("failed to get app data dir: {}", e))?;
+    let recordings_dir = app_data_dir.join("recordings");
+
+    if !recordings_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut entries = Vec::new();
+    let dir = std::fs::read_dir(&recordings_dir)
+        .map_err(|e| format!("failed to read recordings dir: {}", e))?;
+
+    for entry in dir {
+        let entry = entry.map_err(|e| format!("failed to read dir entry: {}", e))?;
+        let path = entry.path();
+        if !path.is_file() || !path.extension().map(|e| e == "mp3").unwrap_or(false) {
+            continue;
+        }
+        let metadata = entry.metadata().map_err(|e| format!("failed to read metadata: {}", e))?;
+        let created = metadata.created()
+            .map(|t| {
+                let datetime: chrono::DateTime<chrono::Local> = t.into();
+                datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+            })
+            .unwrap_or_else(|_| "unknown".to_string());
+        entries.push(RecordingEntry {
+            name: path.file_name().unwrap().to_string_lossy().to_string(),
+            size: metadata.len(),
+            path: path.to_string_lossy().to_string(),
+            created_at: created,
+        });
+    }
+
+    // 按创建时间倒序排列
+    entries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(entries)
+}
+
+/// 删除单个录音文件
+#[tauri::command]
+pub async fn delete_recording(path: String) -> Result<(), String> {
+    std::fs::remove_file(&path)
+        .map_err(|e| format!("failed to delete recording: {}", e))
+}
+
+/// 清理全部录音文件
+#[tauri::command]
+pub async fn clear_recordings(app_handle: tauri::AppHandle) -> Result<u64, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("failed to get app data dir: {}", e))?;
+    let recordings_dir = app_data_dir.join("recordings");
+
+    if !recordings_dir.exists() {
+        return Ok(0);
+    }
+
+    let mut count = 0u64;
+    let dir = std::fs::read_dir(&recordings_dir)
+        .map_err(|e| format!("failed to read recordings dir: {}", e))?;
+
+    for entry in dir {
+        let entry = entry.map_err(|e| format!("failed to read dir entry: {}", e))?;
+        let path = entry.path();
+        if path.is_file() && path.extension().map(|e| e == "mp3").unwrap_or(false) {
+            std::fs::remove_file(&path)
+                .map_err(|e| format!("failed to delete {}: {}", path.display(), e))?;
+            count += 1;
+        }
+    }
+
+    Ok(count)
 }

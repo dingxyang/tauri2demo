@@ -3,6 +3,35 @@ mod speech_eval;
 use speech_eval::audio::RecordingState;
 use speech_eval::commands;
 use serde::Deserialize;
+use std::path::PathBuf;
+use tauri_plugin_log::{Target, TargetKind};
+
+const APP_IDENTIFIER: &str = "com.spanishassistant.app";
+
+pub fn get_config_path() -> PathBuf {
+    let config_path: PathBuf = dirs::data_dir().unwrap().join(APP_IDENTIFIER);
+    ensure_dir_exists(&config_path);
+    config_path
+}
+
+fn ensure_dir_exists(path: &PathBuf) {
+    if !path.exists() {
+        std::fs::create_dir_all(path).expect(&format!("failed to create dir: {:?}", path));
+    }
+}
+
+fn custom_log_out(
+    out: tauri_plugin_log::fern::FormatCallback,
+    message: &std::fmt::Arguments,
+    record: &log::Record,
+) {
+    out.finish(format_args!(
+        "{}[{}] {}",
+        chrono::Local::now().format("[%Y-%m-%d %H:%M:%S%.3f]"),
+        record.level(),
+        message
+    ))
+}
 
 const BAIDU_API_KEY: &str = "YOUR_BAIDU_API_KEY";
 const BAIDU_SECRET_KEY: &str = "YOUR_BAIDU_SECRET_KEY";
@@ -136,6 +165,27 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::Folder {
+                        path: get_config_path(),
+                        file_name: None,
+                    }),
+                    Target::new(TargetKind::Webview),
+                ])
+                .level(if cfg!(debug_assertions) {
+                    log::LevelFilter::Trace
+                } else {
+                    log::LevelFilter::Info
+                })
+                .format(move |out, message, record| {
+                    custom_log_out(out, message, record);
+                })
+                .max_file_size(50000)
+                .build(),
+        )
         // ===== 他的：录音状态管理 =====
         .manage(RecordingState::new())
         .invoke_handler(tauri::generate_handler![
@@ -148,7 +198,10 @@ pub fn run() {
             commands::evaluate_mp3_file,
             commands::tts_synthesize,
             commands::stop_recording_and_recognize,
-            commands::stop_realtime_asr
+            commands::stop_realtime_asr,
+            commands::list_recordings,
+            commands::delete_recording,
+            commands::clear_recordings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,13 +1,14 @@
 <template>
-  <div class="chat-header">
-    <button class="header-btn" @click="$emit('toggle-history')" title="历史会话">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <polyline points="12 6 12 12 16 14"/>
-      </svg>
-    </button>
-    <span class="header-title">{{ title }}</span>
-    <div class="header-right">
+  <PageHeader :title="title">
+    <template #left>
+      <button class="header-btn" @click="$emit('toggle-history')" title="历史会话">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </button>
+    </template>
+    <template #right>
       <button class="header-btn" @click="$emit('open-scenarios')" title="情景对话">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -37,11 +38,13 @@
           <polyline points="10 9 9 9 8 9"/>
         </svg>
       </button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/layouts/PageHeader.vue';
+
 defineProps<{
   title: string;
   isScenario: boolean;
@@ -57,9 +60,18 @@ defineEmits<{
 </script>
 
 <style scoped>
-.chat-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: #fff; border-bottom: 1px solid #ebeef5; flex-shrink: 0; }
-.header-title { font-size: 17px; font-weight: 600; color: #1a1a1a; flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.header-right { display: flex; align-items: center; gap: 4px; }
-.header-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; background: none; cursor: pointer; color: #555; border-radius: 8px; transition: background 0.12s; }
+.header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #555;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
 .header-btn:active { background: #f5f5f5; }
 </style>

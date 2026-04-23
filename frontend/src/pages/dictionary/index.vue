@@ -1,19 +1,19 @@
 <!-- 字典页 -->
 <template>
-  <el-container class="dictionary-container" @click="handleContainerClick">
-    <!-- 头部区域 -->
-    <el-header class="dictionary-header">
-      <div class="page-title">翻译助手</div>
-      <div class="header-controls">
-        <ModelSelector 
+  <div class="dictionary-container" @click="handleContainerClick">
+    <PageHeader title="翻译助手">
+      <template #right>
+        <ModelSelector
           v-model="selectedModel"
           @model-change="handleModelChange"
           class="model-selector-header"
         />
-        <el-icon @click="goToSettings"><Setting /></el-icon>
-      </div>
-    </el-header>
-    
+        <button class="header-icon-btn" @click="goToSettings" title="设置">
+          <el-icon><Setting /></el-icon>
+        </button>
+      </template>
+    </PageHeader>
+
     <!-- 输入区域（固定） -->
     <div class="input-section">
       <el-input
@@ -32,7 +32,7 @@
         <el-button v-if="isLoading" @click="abortRequest" type="danger">终止</el-button>
       </div>
     </div>
-    
+
     <!-- 结果区域（可滚动） -->
     <div class="result-section">
       <!-- 加载状态（仅在没有流式内容时显示） -->
@@ -40,7 +40,7 @@
         <div class="loading-spinner"></div>
         正在会话中...
       </div>
-      
+
       <!-- 使用Markdown渲译结果 -->
       <div
         v-if="markdownResult || (isLoading && streamingText)"
@@ -49,7 +49,7 @@
         <div v-html="markdownResult"></div>
       </div>
     </div>
-    
+
     <!-- 文本选择弹窗 -->
     <TextSelectionPopup
       :visible="textSelection.isVisible.value"
@@ -58,7 +58,7 @@
       @close="textSelection.hidePopup"
       @translate="handlePopupTranslate"
     />
-  </el-container>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -75,6 +75,7 @@ import { useShikiHighlighter } from './hooks/useShikiHighlighter';
 import { useTextSelection } from './hooks/useTextSelection';
 import TextSelectionPopup from './components/TextSelectionPopup.vue';
 import ModelSelector from './components/ModelSelector.vue';
+import PageHeader from '@/layouts/PageHeader.vue';
 import { isMobile } from '@/utils/os';
 import { findWordInPrompt } from "@/utils/handle_word";
 import { aiClientManager } from '@/services/aiClientManager';
@@ -334,33 +335,44 @@ const aiChat = async (prompt: RequestType) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: #f5f5f5;
 }
 
-.dictionary-header {
+.header-icon-btn {
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
-  padding: 20px 20px 0 20px;
-  z-index: 10;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #555;
+  border-radius: 8px;
+  transition: background 0.12s;
+  font-size: 18px;
 }
 
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.header-icon-btn:active {
+  background: #f5f5f5;
 }
 
 .model-selector-header {
-  margin-right: 8px;
+  margin-right: 4px;
 }
 
 /* 输入区域（固定不滚动） */
 .input-section {
   flex-shrink: 0;
-  padding: 20px;
-  z-index: 9;
+  padding: 16px;
+  background: #ffffff;
+  border-bottom: 0.5px solid #e5e5e5;
+}
+
+@media (min-width: 600px) {
+  .input-section {
+    padding: 20px;
+  }
 }
 
 .button-container {
@@ -500,32 +512,22 @@ const aiChat = async (prompt: RequestType) => {
 
 /* 移动端适配 */
 @media (max-width: 600px) {
-  .dictionary-header {
-    padding: 12px 16px 0px 16px;
-    flex-direction: row;
-    gap: 8px;
-  }
-  
-  .page-title {
-    font-size: 16px;
-  }
-  
   .input-section {
     padding: 12px 16px;
   }
-  
+
   .result-section {
     padding: 12px 16px;
   }
-  
+
   .markdown-result {
     padding: 12px;
   }
-  
+
   .button-container {
     gap: 6px;
   }
-  
+
   .button-container .el-button {
     font-size: 13px;
     padding: 8px 12px;
