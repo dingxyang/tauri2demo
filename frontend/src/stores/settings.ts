@@ -50,18 +50,10 @@ export const useSettingsStore = defineStore("settings", () => {
       // 现在存储的是简化格式 "providerId/modelId"，直接使用
       settingsState.defaultModelInfo = currentModelInfo;
     }
-    // Auto-default: if no model saved or saved model unavailable, pick first available
-    if (!settingsState.defaultModelInfo || !isModelAvailable(settingsState.defaultModelInfo)) {
-      const firstAvailable = getFirstAvailableProvider();
-      if (firstAvailable) {
-        settingsState.defaultModelInfo = `${firstAvailable.id}/${firstAvailable.defaultModel}`;
-        setCurrentModelInfo(settingsState.defaultModelInfo);
-      }
-    }
     let settings = getSettings();
     if (settings) {
       settings = JSON.parse(settings);
-      
+
       // 加载新的多提供商配置
       if (settings.providers) {
         Object.keys(settings.providers).forEach(providerId => {
@@ -69,7 +61,7 @@ export const useSettingsStore = defineStore("settings", () => {
             // 合并保存的配置到默认配置
             const savedConfig = settings.providers[providerId];
             const currentProvider = settingsState.providers[providerId];
-            
+
             // 更新provider配置，保持默认结构
             currentProvider.enabled = savedConfig.enabled ?? currentProvider.enabled;
             if (savedConfig.options) {
@@ -94,7 +86,7 @@ export const useSettingsStore = defineStore("settings", () => {
               currentProvider.name = savedConfig.name;
               currentProvider.options = currentProvider.options || {};
             }
-            
+
             // 加载缓存的模型列表
             const cachedModels = getCachedModels(providerId);
             if (cachedModels) {
@@ -107,7 +99,7 @@ export const useSettingsStore = defineStore("settings", () => {
                 console.warn(`加载 ${providerId} 模型缓存失败:`, error);
               }
             }
-            
+
             // 加载缓存的测试结果
             const cachedTestResult = getCachedTestResult(providerId);
             if (cachedTestResult) {
@@ -125,6 +117,15 @@ export const useSettingsStore = defineStore("settings", () => {
       }
       if (settings.xfSpeechEval) {
         Object.assign(settingsState.xfSpeechEval, settings.xfSpeechEval);
+      }
+    }
+
+    // Auto-default: after loading settings and caches, if no model saved or saved model unavailable, pick first available
+    if (!settingsState.defaultModelInfo || !isModelAvailable(settingsState.defaultModelInfo)) {
+      const firstAvailable = getFirstAvailableProvider();
+      if (firstAvailable) {
+        settingsState.defaultModelInfo = `${firstAvailable.id}/${firstAvailable.defaultModel}`;
+        setCurrentModelInfo(settingsState.defaultModelInfo);
       }
     }
 
