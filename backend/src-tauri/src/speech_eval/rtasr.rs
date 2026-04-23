@@ -69,10 +69,8 @@ pub async fn start_realtime_asr(
 ) -> Result<(), String> {
     // Map frontend language codes to RTASR language codes
     let rtasr_lang = match lang {
-        "es" => "en", // RTASR doesn't have "es", use "en" for non-Chinese
         "zh" => "cn",
-        "en" => "en",
-        _ => "en",
+        _ => lang, // es, en, etc. — RTASR supports these directly
     };
 
     // 使用标准版端点（大模型版端点不同，暂不尝试）
