@@ -9,7 +9,7 @@ use tauri_plugin_log::{Target, TargetKind};
 const APP_IDENTIFIER: &str = "com.spanishassistant.app";
 
 pub fn get_config_path() -> PathBuf {
-    let config_path: PathBuf = dirs::config_dir().unwrap().join(APP_IDENTIFIER);
+    let config_path: PathBuf = dirs::data_dir().unwrap().join(APP_IDENTIFIER);
     ensure_dir_exists(&config_path);
     config_path
 }
